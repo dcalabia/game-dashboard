@@ -1,0 +1,3873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Field Log</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <style>html,body{margin:0;padding:0;background:#0b1120;}</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script>
+const { useState, useEffect, useRef } = React;
+function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); }
+// ── constants ────────────────────────────────────────────────
+const XP_PER_LEVEL = 200;
+const XP_REWARDS = {
+  approached: 10,
+  number: 30,
+  date: 75,
+  rejected: 5
+};
+const LEVEL_TITLES = ["Rookie", "Wanderer", "Opener", "Smooth", "Charmer", "Player", "Strategist", "Closer", "Elite", "Legend", "King"];
+const getLevelTitle = l => LEVEL_TITLES[Math.min(l, 10)];
+const TECHNIQUES = ["Situational", "Direct", "Indirect", "Compliment", "Cold Read", "Roleplay", "Callback Humor", "Qualification", "Push-Pull", "Teasing"];
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const BADGES = [{
+  id: "first_move",
+  icon: "⚡",
+  name: "First Move",
+  desc: "Log your first approach",
+  cond: s => s.totalApproaches >= 1
+}, {
+  id: "smoother",
+  icon: "🎙️",
+  name: "Smooth Talker",
+  desc: "Get 5 numbers",
+  cond: s => s.numbersGot >= 5
+}, {
+  id: "datemaster",
+  icon: "🍾",
+  name: "Date Master",
+  desc: "Set 3 dates",
+  cond: s => s.datesSet >= 3
+}, {
+  id: "centurion",
+  icon: "💯",
+  name: "Centurion",
+  desc: "100 approaches",
+  cond: s => s.totalApproaches >= 100
+}, {
+  id: "streak5",
+  icon: "🔥",
+  name: "Hot Streak",
+  desc: "5-day streak",
+  cond: s => s.streak >= 5
+}, {
+  id: "tech5",
+  icon: "🎯",
+  name: "Technician",
+  desc: "Log 5 techniques",
+  cond: s => s.techniques.length >= 5
+}, {
+  id: "king",
+  icon: "👑",
+  name: "King",
+  desc: "Reach Level 10",
+  cond: s => s.level >= 10
+}, {
+  id: "converter",
+  icon: "📈",
+  name: "Converter",
+  desc: "50%+ number rate (10+ apps)",
+  cond: s => s.totalApproaches >= 10 && s.numbersGot / s.totalApproaches >= 0.5
+}];
+const OUTCOME_META = {
+  approached: {
+    label: "Approached",
+    color: "#60a5fa"
+  },
+  number: {
+    label: "Got Number",
+    color: "#22c55e"
+  },
+  date: {
+    label: "Set Date",
+    color: "#3b82f6"
+  },
+  rejected: {
+    label: "Rejected",
+    color: "#e05555"
+  }
+};
+const MICRO_TYPES = {
+  missed: {
+    label: "Missed",
+    color: "#e07040",
+    bg: "#e0704018"
+  },
+  win: {
+    label: "Win",
+    color: "#22c55e",
+    bg: "rgba(34,197,94,0.12)"
+  },
+  note: {
+    label: "Observation",
+    color: "#4d6070",
+    bg: "#88888818"
+  }
+};
+const VENUE_TYPES = ["Bar / Nightlife", "Daytime Street", "Coffee Shop", "Gym", "Transit", "Social Event", "Festival", "App / Online", "Other"];
+const TIME_OF_DAY = ["Morning", "Afternoon", "Evening", "Night"];
+const VIBE_TYPES = ["Solo girl", "Girl with friends", "Girl with mixed group", "Girl with guy friend", "Moving / walking", "Seated / stationary"];
+const DEFAULT_CHECKLIST = [{
+  id: "workout",
+  label: "Workout",
+  icon: "🏋️"
+}, {
+  id: "cardio",
+  label: "Did cardio",
+  icon: "🏃"
+}, {
+  id: "groom",
+  label: "Grooming",
+  icon: "💈"
+}, {
+  id: "sleep",
+  label: "Good sleep",
+  icon: "😴"
+}, {
+  id: "ate",
+  label: "Ate well",
+  icon: "🥩"
+}, {
+  id: "noporn",
+  label: "No porn",
+  icon: "🚫"
+}, {
+  id: "voice",
+  label: "Sang / warmed up voice",
+  icon: "🎤"
+}];
+const DEFAULT_BUCKET = [{
+  id: "bl1",
+  label: "Airport lounge",
+  done: false
+}, {
+  id: "bl2",
+  label: "Rave / underground",
+  done: false
+}, {
+  id: "bl3",
+  label: "Concert",
+  done: false
+}, {
+  id: "bl4",
+  label: "Rooftop bar",
+  done: false
+}, {
+  id: "bl5",
+  label: "Patio season opener",
+  done: false
+}, {
+  id: "bl6",
+  label: "Art gallery opening",
+  done: false
+}, {
+  id: "bl7",
+  label: "Beach day",
+  done: false
+}, {
+  id: "bl8",
+  label: "Farmers market",
+  done: false
+}, {
+  id: "bl9",
+  label: "Bookstore",
+  done: false
+}, {
+  id: "bl10",
+  label: "Film festival",
+  done: false
+}];
+const DEFAULT_BLOCKERS = ["Thought she was too young", "Told myself I'm not ready yet", "She displayed disinterest / no eye contact", "Too many people around", "Talked myself out of it"];
+const DEFAULT_MINDSETS = [{
+  id: 1,
+  text: "Let her reject you — never reject yourself."
+}, {
+  id: 2,
+  text: "Girls are craving to get hit on."
+}, {
+  id: 3,
+  text: "Approaching is free. Your ego may take a hit — but build your capacity for rejection and you'll have unlimited shots."
+}, {
+  id: 4,
+  text: "Shooters shoot. MJ missed 100% of the shots he didn't take."
+}, {
+  id: 5,
+  text: "The window for approaching is very small. Sometimes it takes a glance. If you don't act — you're cooked."
+}];
+const DEFAULT_BLUEPRINTS = [{
+  id: 101,
+  title: "Nightlife — Solo girl at bar",
+  venue: "Bar / Nightlife",
+  time: "Night",
+  vibe: "Solo girl",
+  opener: "Slide next to her while ordering. Eye contact, smile. \"You look like you're having the best / worst night — which is it?\"",
+  transition: "Riff on whatever she says. \"Okay tell me everything\" or \"I'm adopting you for the night.\" Introduce yourself.",
+  hook: "\"You seem like trouble. Are you trouble?\" — lean back, let her qualify herself.",
+  close: "\"We should grab a drink properly — what's your Instagram?\" Say it like it's obvious.",
+  notes: "Don't hover. Plant, walk away, come back. Scarcity is your friend in bars."
+}, {
+  id: 102,
+  title: "Daytime — Girl walking by",
+  venue: "Daytime Street",
+  time: "Afternoon",
+  vibe: "Moving / walking",
+  opener: "Step in front slightly, open hands. \"Hey — I know this is random, I just thought you were cute and had to say something.\"",
+  transition: "\"Where are you headed?\" or \"What's your name?\" You stopped her — now just be normal.",
+  hook: "Find one genuine thing. \"You have this really calm energy, what do you do?\"",
+  close: "\"I'd love to get to know you more — are you on Instagram?\"",
+  notes: "Move fast — you have maybe 60 seconds. Confidence in the opener does 80% of the work."
+}, {
+  id: 103,
+  title: "Coffee Shop — Seated solo",
+  venue: "Coffee Shop",
+  time: "Morning",
+  vibe: "Seated / stationary",
+  opener: "Walk past, make eye contact, smile. Come back 30s later. \"Sorry — I had to come back. You looked interesting and I'd kick myself if I didn't say hi.\"",
+  transition: "\"What are you working on?\" or comment on what she's reading/drinking.",
+  hook: "\"You seem like a regular here — do you have your whole morning locked in?\"",
+  close: "\"I have to get back but — I'd love to continue this. Are you on Instagram?\"",
+  notes: "Warm and calm, not high energy. 3-4 min max then close."
+}, {
+  id: 104,
+  title: "Festival / Outdoor Event",
+  venue: "Festival",
+  time: "Evening",
+  vibe: "Girl with friends",
+  opener: "Catch her eye. Move closer when natural. \"Your group has the best energy here — what are you celebrating?\"",
+  transition: "Talk to the group briefly, then narrow focus to her.",
+  hook: "\"You're clearly the social one\" — get her to invest.",
+  close: "\"I gotta find my people but you're cool — Instagram?\" Quick, don't drag it.",
+  notes: "Always acknowledge the friends first or they'll cockblock."
+}, {
+  id: 105,
+  title: "Transit — Train / Bus",
+  venue: "Transit",
+  time: "Morning",
+  vibe: "Seated / stationary",
+  opener: "Comment on something real. \"Is that book good? I keep seeing it everywhere.\"",
+  transition: "If she responds warmly, introduce yourself. \"I'm [name] by the way — since we're basically commuting together now.\"",
+  hook: "\"Where are you headed?\" — natural, low pressure.",
+  close: "When your stop is coming: \"It was really nice meeting you. Are you on Instagram?\"",
+  notes: "Keep energy low-key. The situational opener removes all weirdness."
+}];
+const defaultData = {
+  totalApproaches: 0,
+  numbersGot: 0,
+  datesSet: 0,
+  rejections: 0,
+  streak: 0,
+  xp: 0,
+  level: 1,
+  techniques: [],
+  interactions: [],
+  earnedBadges: [],
+  lastLogDate: null,
+  fieldReports: [],
+  microLog: [],
+  mindsets: DEFAULT_MINDSETS,
+  blockers: DEFAULT_BLOCKERS,
+  blueprints: DEFAULT_BLUEPRINTS,
+  videos: [],
+  examples: [],
+  checklistItems: DEFAULT_CHECKLIST,
+  checklistHistory: {},
+  // { "YYYY-MM-DD": { itemId: bool, ... } }
+  bucketList: DEFAULT_BUCKET
+};
+function load() {
+  try {
+    const d = localStorage.getItem("gd_v7");
+    return d ? {
+      ...defaultData,
+      ...JSON.parse(d)
+    } : defaultData;
+  } catch {
+    return defaultData;
+  }
+}
+function save(s) {
+  try {
+    localStorage.setItem("gd_v7", JSON.stringify(s));
+  } catch {}
+}
+function isoDate(d) {
+  return d.toLocaleDateString("en-CA");
+}
+function today() {
+  return isoDate(new Date());
+}
+function fmtDate(s) {
+  if (!s) return "";
+  const [, m, d] = s.split("-");
+  return `${MONTHS[parseInt(m) - 1].slice(0, 3)} ${parseInt(d)}`;
+}
+function ytThumb(url) {
+  try {
+    const u = new URL(url);
+    let id = u.searchParams.get("v");
+    if (!id && u.hostname === "youtu.be") id = u.pathname.slice(1);
+    return id ? `https://img.youtube.com/vi/${id}/mqdefault.jpg` : null;
+  } catch {
+    return null;
+  }
+}
+
+// ── primitives ─────────────────────────────────────────────
+function ProgressBar({
+  pct,
+  color = "#3b82f6",
+  height = 4
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      height,
+      background: "#172033",
+      borderRadius: 99,
+      overflow: "hidden"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: "100%",
+      width: `${Math.min(pct, 100)}%`,
+      background: color,
+      borderRadius: 99,
+      transition: "width .4s"
+    }
+  }));
+}
+function Section({
+  title,
+  children,
+  count,
+  defaultOpen = true,
+  action
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      borderBottom: "1px solid #1f1f1f"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    onClick: () => setOpen(o => !o),
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: "13px 16px",
+      cursor: "pointer",
+      userSelect: "none"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      color: "#8fa3b1"
+    }
+  }, title), count !== undefined && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: "#3a4f60",
+      background: "#172033",
+      border: "1px solid #2a2a2a",
+      borderRadius: 10,
+      padding: "1px 7px"
+    }
+  }, count)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 10,
+      alignItems: "center"
+    }
+  }, action && /*#__PURE__*/React.createElement("span", {
+    onClick: e => {
+      e.stopPropagation();
+      action.fn();
+    },
+    style: {
+      fontSize: 12,
+      color: "#4d6070",
+      border: "1px solid #2a2a2a",
+      borderRadius: 4,
+      padding: "2px 8px",
+      background: "#1a2236",
+      cursor: "pointer"
+    }
+  }, action.label), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      color: "#3a4f60",
+      display: "inline-block",
+      transition: "transform .2s",
+      transform: open ? "rotate(90deg)" : "rotate(0deg)"
+    }
+  }, "\u25B6"))), open && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "0 16px 16px"
+    }
+  }, children));
+}
+function BottomSheet({
+  show,
+  onClose,
+  title,
+  children
+}) {
+  useEffect(() => {
+    document.body.style.overflow = show ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [show]);
+  if (!show) return null;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "fixed",
+      inset: 0,
+      background: "rgba(0,0,0,.85)",
+      zIndex: 200,
+      display: "flex",
+      alignItems: "flex-end"
+    },
+    onClick: onClose
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#111827",
+      borderRadius: "14px 14px 0 0",
+      border: "1px solid #2a2a2a",
+      borderBottom: "none",
+      width: "100%",
+      maxHeight: "92vh",
+      overflowY: "auto",
+      padding: "20px 16px 36px"
+    },
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 36,
+      height: 4,
+      background: "rgba(255,255,255,0.08)",
+      borderRadius: 2,
+      margin: "0 auto 18px"
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 15,
+      fontWeight: 700,
+      color: "#f0f4f8",
+      marginBottom: 18
+    }
+  }, title), children));
+}
+function FL({
+  c
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      fontWeight: 600,
+      color: "#4d6070",
+      letterSpacing: .6,
+      textTransform: "uppercase",
+      marginBottom: 6
+    }
+  }, c);
+}
+function FW({
+  children
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 14
+    }
+  }, children);
+}
+function Inp({
+  style: s,
+  ...p
+}) {
+  return /*#__PURE__*/React.createElement("input", _extends({}, p, {
+    style: {
+      background: "#1a2236",
+      border: "1px solid #2a2a2a",
+      color: "#f0f4f8",
+      borderRadius: 6,
+      padding: "9px 12px",
+      fontFamily: "'DM Sans',sans-serif",
+      fontSize: 14,
+      width: "100%",
+      outline: "none",
+      ...s
+    }
+  }));
+}
+function Sel({
+  children,
+  ...p
+}) {
+  return /*#__PURE__*/React.createElement("select", _extends({}, p, {
+    style: {
+      background: "#1a2236",
+      border: "1px solid #2a2a2a",
+      color: "#f0f4f8",
+      borderRadius: 6,
+      padding: "9px 12px",
+      fontFamily: "'DM Sans',sans-serif",
+      fontSize: 14,
+      width: "100%",
+      outline: "none"
+    }
+  }), children);
+}
+function TA({
+  style: s,
+  ...p
+}) {
+  return /*#__PURE__*/React.createElement("textarea", _extends({}, p, {
+    style: {
+      background: "#1a2236",
+      border: "1px solid #2a2a2a",
+      color: "#f0f4f8",
+      borderRadius: 6,
+      padding: "9px 12px",
+      fontFamily: "'DM Sans',sans-serif",
+      fontSize: 14,
+      width: "100%",
+      outline: "none",
+      resize: "vertical",
+      lineHeight: 1.6,
+      ...s
+    }
+  }));
+}
+function Btn({
+  children,
+  onClick,
+  disabled,
+  variant = "primary",
+  style: s
+}) {
+  const vs = {
+    primary: {
+      background: disabled ? "rgba(255,255,255,0.08)" : "#3b82f6",
+      color: disabled ? "#3a4f60" : "#0b1120",
+      border: "none"
+    },
+    ghost: {
+      background: "transparent",
+      color: "#4d6070",
+      border: "1px solid #2e2e2e"
+    }
+  };
+  return /*#__PURE__*/React.createElement("button", {
+    onClick: onClick,
+    disabled: disabled,
+    style: {
+      borderRadius: 7,
+      fontSize: 14,
+      fontWeight: 700,
+      padding: "11px 16px",
+      fontFamily: "'DM Sans',sans-serif",
+      cursor: disabled ? "default" : "pointer",
+      transition: "all .15s",
+      ...vs[variant],
+      ...s
+    }
+  }, children);
+}
+function StepRow({
+  label,
+  color,
+  text
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 10,
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 3,
+      borderRadius: 2,
+      background: color,
+      flexShrink: 0,
+      minHeight: 20
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      fontWeight: 700,
+      color,
+      letterSpacing: .8,
+      textTransform: "uppercase",
+      marginBottom: 3
+    }
+  }, label), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 13,
+      color: "#c9d8e4",
+      lineHeight: 1.65
+    }
+  }, text)));
+}
+
+// ── app ──────────────────────────────────────────────────────
+function App() {
+  const [data, setData] = useState(load);
+  const [tab, setTab] = useState("pregame");
+  const [xpToast, setXpToast] = useState(null);
+  const [levelUpMsg, setLvlUp] = useState(null);
+  const [monthOffset, setMoOff] = useState(0);
+  const toastRef = useRef(null);
+  const [showParse, setShowParse] = useState(false);
+  const [showLog, setShowLog] = useState(false);
+  const [showMacro, setShowMacro] = useState(false);
+  const [showMicro, setShowMicro] = useState(false);
+  const [showMind, setShowMind] = useState(false);
+  const [showBlock, setShowBlock] = useState(false);
+  const [showVideo, setShowVideo] = useState(false);
+  const [showEx, setShowEx] = useState(false);
+  const [showBP, setShowBP] = useState(false);
+  const [showBPView, setShowBPView] = useState(null);
+  const [showAddCL, setShowAddCL] = useState(false);
+  const [showAddBL, setShowAddBL] = useState(false);
+  const [showCLHist, setShowCLHist] = useState(false);
+  const [editMacro, setEditMacro] = useState(null);
+  const [editMicro, setEditMicro] = useState(null);
+  const [editBP, setEditBP] = useState(null);
+  const [logEntry, setLogEntry] = useState({
+    outcome: "approached",
+    technique: "",
+    location: "",
+    notes: ""
+  });
+  const [macroForm, setMacroForm] = useState({
+    date: today(),
+    venue: "",
+    crew: "",
+    noticed: "",
+    text: ""
+  });
+  const [microForm, setMicroForm] = useState({
+    date: today(),
+    venue: "",
+    type: "missed",
+    text: "",
+    blockers: [],
+    blueprintId: null
+  });
+  const [videoForm, setVideoForm] = useState({
+    title: "",
+    url: "",
+    note: ""
+  });
+  const [exForm, setExForm] = useState({
+    title: "",
+    url: "",
+    note: ""
+  });
+  const [mindForm, setMindForm] = useState("");
+  const [blockForm, setBlockForm] = useState("");
+  const [bpForm, setBpForm] = useState({
+    title: "",
+    venue: "",
+    time: "",
+    vibe: "",
+    opener: "",
+    transition: "",
+    hook: "",
+    close: "",
+    notes: ""
+  });
+  const [clForm, setClForm] = useState({
+    label: "",
+    icon: "✅"
+  });
+  const [blForm, setBlForm] = useState("");
+  useEffect(() => {
+    save(data);
+  }, [data]);
+
+  // checklist helpers
+  const todayKey = today();
+  const todayChecks = (data.checklistHistory || {})[todayKey] || {};
+  const checkedCount = (data.checklistItems || []).filter(i => todayChecks[i.id]).length;
+  const totalItems = (data.checklistItems || []).length;
+  function toggleCheck(id) {
+    setData(d => {
+      var _d$checklistHistory, _d$checklistHistory2;
+      return {
+        ...d,
+        checklistHistory: {
+          ...d.checklistHistory,
+          [todayKey]: {
+            ...(((_d$checklistHistory = d.checklistHistory) === null || _d$checklistHistory === void 0 ? void 0 : _d$checklistHistory[todayKey]) || {}),
+            [id]: !((_d$checklistHistory2 = d.checklistHistory) !== null && _d$checklistHistory2 !== void 0 && (_d$checklistHistory2 = _d$checklistHistory2[todayKey]) !== null && _d$checklistHistory2 !== void 0 && _d$checklistHistory2[id])
+          }
+        }
+      };
+    });
+  }
+  function addChecklistItem() {
+    if (!clForm.label.trim()) return;
+    setData(d => ({
+      ...d,
+      checklistItems: [...d.checklistItems, {
+        id: `cl_${Date.now()}`,
+        label: clForm.label.trim(),
+        icon: clForm.icon || "✅"
+      }]
+    }));
+    setClForm({
+      label: "",
+      icon: "✅"
+    });
+    setShowAddCL(false);
+  }
+  function removeChecklistItem(id) {
+    setData(d => ({
+      ...d,
+      checklistItems: d.checklistItems.filter(i => i.id !== id)
+    }));
+  }
+  function addBucketItem() {
+    if (!blForm.trim()) return;
+    setData(d => ({
+      ...d,
+      bucketList: [...d.bucketList, {
+        id: `bl_${Date.now()}`,
+        label: blForm.trim(),
+        done: false
+      }]
+    }));
+    setBlForm("");
+    setShowAddBL(false);
+  }
+  function toggleBucket(id) {
+    setData(d => ({
+      ...d,
+      bucketList: d.bucketList.map(b => b.id === id ? {
+        ...b,
+        done: !b.done
+      } : b)
+    }));
+  }
+
+  // checklist history — last 14 days
+  const historyDays = Array.from({
+    length: 14
+  }).map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = isoDate(d);
+    const checks = (data.checklistHistory || {})[key] || {};
+    const done = (data.checklistItems || []).filter(it => checks[it.id]).length;
+    const total = (data.checklistItems || []).length;
+    // field report for this day
+    const report = (data.fieldReports || []).find(r => r.date === key);
+    const micros = (data.microLog || []).filter(m => m.date === key);
+    return {
+      key,
+      label: fmtDate(key) || "Today",
+      done,
+      total,
+      report,
+      micros
+    };
+  }).filter(d => d.done > 0 || d.report || d.micros.length > 0);
+  function openEditMacro(r) {
+    setMacroForm({
+      date: r.date,
+      venue: r.venue || "",
+      crew: r.crew || "",
+      noticed: r.noticed || "",
+      text: r.text || ""
+    });
+    setEditMacro(r.id);
+    setShowMacro(true);
+  }
+  function openEditMicro(m) {
+    setMicroForm({
+      date: m.date,
+      venue: m.venue || "",
+      type: m.type || "missed",
+      text: m.text || "",
+      blockers: m.blockers || [],
+      blueprintId: m.blueprintId || null
+    });
+    setEditMicro(m.id);
+    setShowMicro(true);
+  }
+  function openEditBP(bp) {
+    setBpForm({
+      title: bp.title || "",
+      venue: bp.venue || "",
+      time: bp.time || "",
+      vibe: bp.vibe || "",
+      opener: bp.opener || "",
+      transition: bp.transition || "",
+      hook: bp.hook || "",
+      close: bp.close || "",
+      notes: bp.notes || ""
+    });
+    setEditBP(bp.id);
+    setShowBP(true);
+  }
+  function closeMacro() {
+    setShowMacro(false);
+    setEditMacro(null);
+    setMacroForm({
+      date: today(),
+      venue: "",
+      crew: "",
+      noticed: "",
+      text: ""
+    });
+  }
+  function closeMicro() {
+    setShowMicro(false);
+    setEditMicro(null);
+    setMicroForm({
+      date: today(),
+      venue: "",
+      type: "missed",
+      text: "",
+      blockers: [],
+      blueprintId: null
+    });
+  }
+  function closeBP() {
+    setShowBP(false);
+    setEditBP(null);
+    setBpForm({
+      title: "",
+      venue: "",
+      time: "",
+      vibe: "",
+      opener: "",
+      transition: "",
+      hook: "",
+      close: "",
+      notes: ""
+    });
+  }
+  function logApproach() {
+    const gained = XP_REWARDS[logEntry.outcome] ?? 10,
+      prevLevel = data.level;
+    const tod = new Date().toDateString(),
+      yest = new Date(Date.now() - 86400000).toDateString();
+    const newStreak = data.lastLogDate === tod ? data.streak : data.lastLogDate === yest ? data.streak + 1 : 1;
+    const updated = {
+      ...data,
+      totalApproaches: data.totalApproaches + (logEntry.outcome !== "date" ? 1 : 0),
+      numbersGot: data.numbersGot + (logEntry.outcome === "number" ? 1 : 0),
+      datesSet: data.datesSet + (logEntry.outcome === "date" ? 1 : 0),
+      rejections: data.rejections + (logEntry.outcome === "rejected" ? 1 : 0),
+      xp: data.xp + gained,
+      streak: newStreak,
+      lastLogDate: tod,
+      techniques: logEntry.technique && !data.techniques.includes(logEntry.technique) ? [...data.techniques, logEntry.technique] : data.techniques,
+      interactions: [{
+        ...logEntry,
+        xp: gained,
+        ts: new Date().toLocaleString()
+      }, ...data.interactions.slice(0, 99)]
+    };
+    updated.level = Math.floor(updated.xp / XP_PER_LEVEL) + 1;
+    updated.earnedBadges = [...data.earnedBadges, ...BADGES.filter(b => !data.earnedBadges.includes(b.id) && b.cond(updated)).map(b => b.id)];
+    setData(updated);
+    clearTimeout(toastRef.current);
+    setXpToast(`+${gained} XP`);
+    toastRef.current = setTimeout(() => setXpToast(null), 2200);
+    if (updated.level > prevLevel) {
+      setLvlUp(`Level ${updated.level} — ${getLevelTitle(updated.level)}`);
+      setTimeout(() => setLvlUp(null), 3000);
+    }
+    setLogEntry({
+      outcome: "approached",
+      technique: "",
+      location: "",
+      notes: ""
+    });
+    setShowLog(false);
+  }
+  function saveMacro() {
+    if (!macroForm.text.trim() && !macroForm.venue.trim()) return;
+    const item = {
+      ...macroForm,
+      noticed: parseInt(macroForm.noticed) || 0
+    };
+    if (editMacro) setData(d => ({
+      ...d,
+      fieldReports: d.fieldReports.map(r => r.id === editMacro ? {
+        ...r,
+        ...item
+      } : r)
+    }));else setData(d => ({
+      ...d,
+      fieldReports: [{
+        id: Date.now(),
+        ...item,
+        ts: new Date().toLocaleString()
+      }, ...d.fieldReports]
+    }));
+    closeMacro();
+  }
+  function saveMicro() {
+    if (!microForm.text.trim()) return;
+    if (editMicro) setData(d => ({
+      ...d,
+      microLog: d.microLog.map(m => m.id === editMicro ? {
+        ...m,
+        ...microForm
+      } : m)
+    }));else setData(d => ({
+      ...d,
+      microLog: [{
+        id: Date.now(),
+        ...microForm,
+        ts: new Date().toLocaleString()
+      }, ...d.microLog]
+    }));
+    closeMicro();
+  }
+  function saveBP() {
+    if (!bpForm.title.trim()) return;
+    if (editBP) setData(d => ({
+      ...d,
+      blueprints: d.blueprints.map(b => b.id === editBP ? {
+        ...b,
+        ...bpForm
+      } : b)
+    }));else setData(d => ({
+      ...d,
+      blueprints: [...d.blueprints, {
+        id: Date.now(),
+        ...bpForm
+      }]
+    }));
+    closeBP();
+  }
+  function addMindset() {
+    if (!mindForm.trim()) return;
+    setData(d => ({
+      ...d,
+      mindsets: [...d.mindsets, {
+        id: Date.now(),
+        text: mindForm.trim()
+      }]
+    }));
+    setMindForm("");
+    setShowMind(false);
+  }
+  function addBlocker() {
+    if (!blockForm.trim()) return;
+    setData(d => ({
+      ...d,
+      blockers: [...d.blockers, blockForm.trim()]
+    }));
+    setBlockForm("");
+    setShowBlock(false);
+  }
+  function saveVideo() {
+    if (!videoForm.url.trim()) return;
+    setData(d => ({
+      ...d,
+      videos: [{
+        id: Date.now(),
+        ...videoForm
+      }, ...d.videos]
+    }));
+    setVideoForm({
+      title: "",
+      url: "",
+      note: ""
+    });
+    setShowVideo(false);
+  }
+  function saveEx() {
+    if (!exForm.url.trim()) return;
+    setData(d => ({
+      ...d,
+      examples: [{
+        id: Date.now(),
+        ...exForm
+      }, ...d.examples]
+    }));
+    setExForm({
+      title: "",
+      url: "",
+      note: ""
+    });
+    setShowEx(false);
+  }
+
+  // ── confirm parsed results ──
+  function confirmParse(parsed) {
+    const {
+      fieldReport,
+      microEntries,
+      approaches
+    } = parsed;
+    let updated = {
+      ...data
+    };
+    if (fieldReport) {
+      updated.fieldReports = [{
+        id: Date.now(),
+        ...fieldReport,
+        ts: new Date().toLocaleString()
+      }, ...updated.fieldReports];
+    }
+    if (microEntries !== null && microEntries !== void 0 && microEntries.length) {
+      const newMicro = microEntries.map(m => ({
+        id: Date.now() + Math.random(),
+        ...m,
+        ts: new Date().toLocaleString()
+      }));
+      updated.microLog = [...newMicro, ...updated.microLog];
+    }
+    if (approaches !== null && approaches !== void 0 && approaches.length) {
+      let xpGained = 0;
+      const prevLevel = updated.level;
+      const tod = new Date().toDateString(),
+        yest = new Date(Date.now() - 86400000).toDateString();
+      const newStreak = updated.lastLogDate === tod ? updated.streak : updated.lastLogDate === yest ? updated.streak + 1 : 1;
+      const newInteractions = approaches.map(a => {
+        const xp = XP_REWARDS[a.outcome] ?? 10;
+        xpGained += xp;
+        updated.totalApproaches += a.outcome !== "date" ? 1 : 0;
+        updated.numbersGot += a.outcome === "number" ? 1 : 0;
+        updated.datesSet += a.outcome === "date" ? 1 : 0;
+        updated.rejections += a.outcome === "rejected" ? 1 : 0;
+        return {
+          ...a,
+          xp,
+          ts: new Date().toLocaleString()
+        };
+      });
+      updated.interactions = [...newInteractions, ...updated.interactions.slice(0, 99)];
+      updated.xp += xpGained;
+      updated.streak = newStreak;
+      updated.lastLogDate = tod;
+      updated.level = Math.floor(updated.xp / XP_PER_LEVEL) + 1;
+      updated.earnedBadges = [...updated.earnedBadges, ...BADGES.filter(b => !updated.earnedBadges.includes(b.id) && b.cond(updated)).map(b => b.id)];
+      if (updated.level > prevLevel) {
+        setLvlUp(`Level ${updated.level} — ${getLevelTitle(updated.level)}`);
+        setTimeout(() => setLvlUp(null), 3000);
+      }
+    }
+    setData(updated);
+    setShowParse(false);
+  }
+
+  // monthly
+  const now = new Date(),
+    viewDate = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+  const viewYear = viewDate.getFullYear(),
+    viewMonth = viewDate.getMonth();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate(),
+    firstDow = new Date(viewYear, viewMonth, 1).getDay();
+  const dayData = {};
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = isoDate(new Date(viewYear, viewMonth, d));
+    const reports = (data.fieldReports || []).filter(r => r.date === key);
+    const micros = (data.microLog || []).filter(m => m.date === key);
+    dayData[key] = {
+      noticed: reports.reduce((s, r) => s + (r.noticed || 0), 0),
+      couldve: micros.filter(m => m.type === "missed").length,
+      wins: micros.filter(m => m.type === "win").length,
+      hasData: reports.length > 0 || micros.length > 0
+    };
+  }
+  const blockerCounts = {};
+  (data.microLog || []).filter(m => m.type === "missed").forEach(m => (m.blockers || []).forEach(b => {
+    blockerCounts[b] = (blockerCounts[b] || 0) + 1;
+  }));
+  const topBlockers = Object.entries(blockerCounts).sort((a, b) => b[1] - a[1]);
+  const convRate = data.totalApproaches > 0 ? Math.round(data.numbersGot / data.totalApproaches * 100) : 0;
+  const dateRate = data.numbersGot > 0 ? Math.round(data.datesSet / data.numbersGot * 100) : 0;
+  const xpInLevel = data.xp % XP_PER_LEVEL;
+  const ROW1 = [{
+    id: "pregame",
+    icon: "🔥",
+    label: "Pre-Game"
+  }, {
+    id: "overview",
+    icon: "📊",
+    label: "Stats"
+  }, {
+    id: "field",
+    icon: "🌆",
+    label: "Field"
+  }, {
+    id: "micro",
+    icon: "🎯",
+    label: "Log"
+  }];
+  const ROW2 = [{
+    id: "monthly",
+    icon: "📅",
+    label: "Monthly"
+  }, {
+    id: "blueprint",
+    icon: "📖",
+    label: "Blueprint"
+  }, {
+    id: "mindset",
+    icon: "🧠",
+    label: "Mindset"
+  }, {
+    id: "vault",
+    icon: "🎬",
+    label: "Vault"
+  }];
+  const fabMap = {
+    pregame: null,
+    overview: () => setShowLog(true),
+    field: () => {
+      closeMacro();
+      setShowMacro(true);
+    },
+    micro: () => {
+      closeMicro();
+      setShowMicro(true);
+    },
+    monthly: null,
+    blueprint: () => {
+      closeBP();
+      setShowBP(true);
+    },
+    mindset: null,
+    vault: null
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: 480,
+      margin: "0 auto",
+      minHeight: "100vh",
+      background: "#0b1120",
+      color: "#f0f4f8",
+      fontFamily: "'DM Sans','Helvetica Neue',sans-serif",
+      fontSize: 14,
+      paddingBottom: 106
+    }
+  }, /*#__PURE__*/React.createElement("style", null, `
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+        *{box-sizing:border-box;margin:0;padding:0;}
+        ::-webkit-scrollbar{width:4px;}
+        ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.16);border-radius:2px;}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes toastIn{0%{opacity:0;transform:translateY(-8px)}15%,80%{opacity:1;transform:translateY(0)}100%{opacity:0}}
+        @keyframes levelPop{0%,100%{opacity:0;transform:scale(.94)}15%,85%{opacity:1;transform:scale(1)}}
+        .tab-bar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;
+          background:#0b1120;border-top:1px solid #1e1e1e;z-index:100;padding-bottom:env(safe-area-inset-bottom,0);}
+        .tab-row{display:flex;}
+        .tab-row-2{border-top:1px solid #1a1a1a;}
+        .tab-btn{flex:1;padding:9px 0 10px;border:none;background:transparent;font-size:17px;
+          transition:opacity .15s;opacity:.28;cursor:pointer;}
+        .tab-btn.active{opacity:1;}
+        .tab-label{font-size:9px;color:#666;display:block;margin-top:1px;letter-spacing:.2px;}
+        .tab-btn.active .tab-label{color:#3b82f6;}
+        .fab{position:fixed;bottom:94px;right:16px;width:48px;height:48px;border-radius:24px;
+          background:#3b82f6;border:none;color:#fff;font-size:22px;font-weight:700;
+          box-shadow:0 4px 20px rgba(240,165,0,.35);display:flex;align-items:center;justify-content:center;
+          transition:transform .15s;z-index:99;cursor:pointer;}
+        .fab:active{transform:scale(.91);}
+        .outcome-chip{padding:9px 10px;border-radius:6px;font-size:13px;font-weight:600;
+          border:1px solid;background:transparent;transition:all .15s;font-family:'DM Sans',sans-serif;text-align:left;cursor:pointer;}
+        .type-chip{padding:7px 12px;border-radius:20px;font-size:12px;font-weight:600;
+          border:1px solid #2a2a2a;background:transparent;color:#666;transition:all .15s;
+          font-family:'DM Sans',sans-serif;cursor:pointer;white-space:nowrap;}
+        .blocker-chip{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;
+          border:1px solid #2a2a2a;background:transparent;font-family:'DM Sans',sans-serif;
+          font-size:13px;color:#888;cursor:pointer;transition:all .15s;text-align:left;width:100%;margin-bottom:6px;}
+        .blocker-chip.sel{border-color:#e07040;color:#e07040;background:#e0704018;}
+        .bp-chip{display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:6px;
+          border:1px solid #2a2a2a;background:transparent;font-family:'DM Sans',sans-serif;
+          font-size:13px;color:#888;cursor:pointer;transition:all .15s;text-align:left;width:100%;margin-bottom:6px;}
+        .bp-chip.sel{border-color:#4a9eff;color:#4a9eff;background:#4a9eff18;}
+        .stat-row{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid #1a1a1a;}
+        .stat-row:last-child{border-bottom:none;}
+        .card{background:#111827;border:1px solid rgba(255,255,255,0.061e1e;border-radius:8px;padding:14px;margin-bottom:10px;}
+        .day-cell{aspect-ratio:1;border-radius:5px;display:flex;flex-direction:column;align-items:center;
+          justify-content:center;font-size:12px;font-weight:600;border:1px solid transparent;}
+        .day-cell.has-data{background:#1a1a1a;border-color:#2a2a2a;}
+        .day-cell.is-today{border-color:rgba(59,130,246,0.4)!important;}
+        .link-card{background:#111827;border:1px solid rgba(255,255,255,0.061e1e;border-radius:8px;overflow:hidden;margin-bottom:10px;}
+        .mindset-card{background:#111827;border:1px solid rgba(255,255,255,0.061e1e;border-radius:8px;
+          padding:14px 14px 14px 16px;margin-bottom:8px;border-left:3px solid rgba(59,130,246,0.4);}
+        .bp-card{background:#111827;border:1px solid rgba(255,255,255,0.061e1e;border-radius:8px;
+          padding:16px;margin-bottom:10px;border-left:3px solid #4a9eff60;cursor:pointer;}
+        .parse-fab{position:fixed;bottom:94px;left:16px;width:48px;height:48px;border-radius:24px;
+          background:#1e1e1e;border:1px solid #333;color:#d4d4d4;font-size:20px;
+          box-shadow:0 4px 16px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;
+          transition:transform .15s,box-shadow .15s;z-index:99;cursor:pointer;}
+        .parse-fab:active{transform:scale(.91);}
+        .parse-preview-card{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;
+          padding:12px;margin-bottom:10px;}
+        .cl-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #1a1a1a;}
+        .cl-item:last-child{border-bottom:none;}
+        .cl-check{width:22px;height:22px;border-radius:6px;border:1.5px solid #333;
+          display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;cursor:pointer;}
+        .cl-check.done{background:#3b82f6;border-color:#3b82f6;}
+        .bucket-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #1a1a1a;}
+        .bucket-item:last-child{border-bottom:none;}
+        input:focus,select:focus,textarea:focus{border-color:#444!important;outline:none!important;}
+      `), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "16px 16px 12px",
+      borderBottom: "1px solid #1e1e1e",
+      position: "sticky",
+      top: 0,
+      background: "#0b1120",
+      zIndex: 50
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between"
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: "#3a4f60",
+      letterSpacing: .8,
+      marginBottom: 1
+    }
+  }, "THE GAME"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 16,
+      fontWeight: 700,
+      color: "#f0f4f8"
+    }
+  }, "Field Log")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "right"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: "#3b82f6"
+    }
+  }, "LV.", data.level, " ", getLevelTitle(data.level)), data.streak > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: "#4d6070",
+      marginTop: 1
+    }
+  }, "\uD83D\uDD25 ", data.streak, "d streak"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      marginBottom: 4
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: "#3a4f60"
+    }
+  }, "XP"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: "#3a4f60"
+    }
+  }, xpInLevel, " / ", XP_PER_LEVEL)), /*#__PURE__*/React.createElement(ProgressBar, {
+    pct: xpInLevel / XP_PER_LEVEL * 100
+  }))), tab === "pregame" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      animation: "fadeUp .2s ease"
+    }
+  }, /*#__PURE__*/React.createElement(Section, {
+    title: "Today's checklist",
+    action: {
+      label: "+ Add",
+      fn: () => setShowAddCL(true)
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      marginBottom: 6
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      color: "#4d6070"
+    }
+  }, "Optimized today"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700,
+      color: checkedCount === totalItems ? "#22c55e" : "#3b82f6"
+    }
+  }, checkedCount, " / ", totalItems)), /*#__PURE__*/React.createElement(ProgressBar, {
+    pct: totalItems > 0 ? checkedCount / totalItems * 100 : 0,
+    color: checkedCount === totalItems ? "#22c55e" : "#3b82f6",
+    height: 5
+  })), (data.checklistItems || []).map(item => {
+    const done = !!todayChecks[item.id];
+    return /*#__PURE__*/React.createElement("div", {
+      key: item.id,
+      className: "cl-item"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: `cl-check${done ? " done" : ""}`,
+      onClick: () => toggleCheck(item.id)
+    }, done && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 13,
+        color: "#0b1120",
+        fontWeight: 700
+      }
+    }, "\u2713")), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 16
+      }
+    }, item.icon), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 14,
+        color: done ? "#4d6070" : "#d8e6f0",
+        textDecoration: done ? "line-through" : "none",
+        flex: 1,
+        transition: "all .2s"
+      }
+    }, item.label), /*#__PURE__*/React.createElement("button", {
+      onClick: () => removeChecklistItem(item.id),
+      style: {
+        fontSize: 12,
+        color: "rgba(255,255,255,0.1)",
+        background: "none",
+        border: "none",
+        padding: "2px 4px",
+        cursor: "pointer"
+      }
+    }, "\u2715"));
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowCLHist(true),
+    style: {
+      marginTop: 12,
+      fontSize: 12,
+      color: "#4d6070",
+      background: "none",
+      border: "1px solid #2a2a2a",
+      borderRadius: 6,
+      padding: "6px 12px",
+      cursor: "pointer",
+      fontFamily: "'DM Sans',sans-serif",
+      width: "100%"
+    }
+  }, "View history \u2192")), /*#__PURE__*/React.createElement(Section, {
+    title: "Mindset reminder",
+    defaultOpen: true
+  }, (data.mindsets || []).slice(0, 3).map((m, i) => /*#__PURE__*/React.createElement("div", {
+    key: m.id,
+    style: {
+      display: "flex",
+      gap: 10,
+      alignItems: "flex-start",
+      padding: "9px 0",
+      borderBottom: "1px solid #1a1a1a"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: "#3b82f6",
+      fontWeight: 700,
+      marginTop: 2,
+      flexShrink: 0
+    }
+  }, i + 1), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 13,
+      color: "#c9d8e4",
+      lineHeight: 1.6
+    }
+  }, m.text))), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setTab("mindset"),
+    style: {
+      marginTop: 10,
+      fontSize: 12,
+      color: "#4d6070",
+      background: "none",
+      border: "none",
+      padding: 0,
+      cursor: "pointer",
+      fontFamily: "'DM Sans',sans-serif"
+    }
+  }, "View all mindsets \u2192")), /*#__PURE__*/React.createElement(Section, {
+    title: "Quick blueprint reference",
+    defaultOpen: false
+  }, (data.blueprints || []).slice(0, 3).map(bp => {
+    var _bp$opener;
+    return /*#__PURE__*/React.createElement("div", {
+      key: bp.id,
+      onClick: () => setShowBPView(bp),
+      style: {
+        padding: "10px 0",
+        borderBottom: "1px solid #1a1a1a",
+        cursor: "pointer"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13,
+        fontWeight: 600,
+        color: "#d8e6f0",
+        marginBottom: 3
+      }
+    }, bp.title), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12,
+        color: "#4d6070"
+      }
+    }, (_bp$opener = bp.opener) === null || _bp$opener === void 0 ? void 0 : _bp$opener.slice(0, 70), "\u2026"));
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setTab("blueprint"),
+    style: {
+      marginTop: 10,
+      fontSize: 12,
+      color: "#4d6070",
+      background: "none",
+      border: "none",
+      padding: 0,
+      cursor: "pointer",
+      fontFamily: "'DM Sans',sans-serif"
+    }
+  }, "View all blueprints \u2192")), (data.videos || []).length > 0 && /*#__PURE__*/React.createElement(Section, {
+    title: "Get in state \u2014 watch one",
+    defaultOpen: true
+  }, (data.videos || []).slice(0, 3).map(v => {
+    const thumb = ytThumb(v.url);
+    return /*#__PURE__*/React.createElement("a", {
+      key: v.id,
+      href: v.url,
+      target: "_blank",
+      rel: "noreferrer",
+      style: {
+        display: "flex",
+        gap: 10,
+        alignItems: "center",
+        padding: "10px 0",
+        borderBottom: "1px solid #1a1a1a",
+        textDecoration: "none"
+      }
+    }, thumb && /*#__PURE__*/React.createElement("img", {
+      src: thumb,
+      alt: "",
+      style: {
+        width: 64,
+        height: 36,
+        objectFit: "cover",
+        borderRadius: 4,
+        flexShrink: 0
+      }
+    }), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 13,
+        color: "#60a5fa",
+        fontWeight: 500
+      }
+    }, v.title || "Watch"));
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setTab("vault"),
+    style: {
+      marginTop: 10,
+      fontSize: 12,
+      color: "#4d6070",
+      background: "none",
+      border: "none",
+      padding: 0,
+      cursor: "pointer",
+      fontFamily: "'DM Sans',sans-serif"
+    }
+  }, "View vault \u2192")), /*#__PURE__*/React.createElement(Section, {
+    title: "Toronto bucket list",
+    count: (data.bucketList || []).filter(b => b.done).length + "/" + (data.bucketList || []).length,
+    defaultOpen: false,
+    action: {
+      label: "+ Add",
+      fn: () => setShowAddBL(true)
+    }
+  }, (data.bucketList || []).map(b => /*#__PURE__*/React.createElement("div", {
+    key: b.id,
+    className: "bucket-item"
+  }, /*#__PURE__*/React.createElement("div", {
+    onClick: () => toggleBucket(b.id),
+    style: {
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      border: `1.5px solid ${b.done ? "#22c55e" : "rgba(255,255,255,0.1)"}`,
+      background: b.done ? "#22c55e" : "transparent",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: 0,
+      cursor: "pointer",
+      transition: "all .15s"
+    }
+  }, b.done && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: "#0b1120",
+      fontWeight: 700
+    }
+  }, "\u2713")), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: b.done ? "#3a4f60" : "#d8e6f0",
+      textDecoration: b.done ? "line-through" : "none",
+      flex: 1,
+      transition: "all .2s"
+    }
+  }, b.label), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setData(d => ({
+      ...d,
+      bucketList: d.bucketList.filter(x => x.id !== b.id)
+    })),
+    style: {
+      fontSize: 12,
+      color: "rgba(255,255,255,0.1)",
+      background: "none",
+      border: "none",
+      padding: "2px 4px",
+      cursor: "pointer"
+    }
+  }, "\u2715"))))), tab === "overview" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      animation: "fadeUp .2s ease"
+    }
+  }, /*#__PURE__*/React.createElement(Section, {
+    title: "Stats"
+  }, [["Approaches", data.totalApproaches, null], ["Numbers", data.numbersGot, null], ["Dates set", data.datesSet, null], ["Rejections", data.rejections, null], ["Missed", (data.microLog || []).filter(m => m.type === "missed").length, "#e07040"], ["Total XP", data.xp, "#3b82f6"]].map(([l, v, c]) => /*#__PURE__*/React.createElement("div", {
+    key: l,
+    className: "stat-row"
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: "#8fa3b1",
+      fontSize: 13
+    }
+  }, l), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 700,
+      color: c || "#f0f4f8"
+    }
+  }, v)))), /*#__PURE__*/React.createElement(Section, {
+    title: "Conversion"
+  }, [[convRate, "Approach → Number", "#60a5fa"], [dateRate, "Number → Date", "#22c55e"]].map(([p, l, c]) => /*#__PURE__*/React.createElement("div", {
+    key: l,
+    style: {
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      marginBottom: 5
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: "#8fa3b1"
+    }
+  }, l), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700
+    }
+  }, p, "%")), /*#__PURE__*/React.createElement(ProgressBar, {
+    pct: p,
+    color: c,
+    height: 5
+  })))), topBlockers.length > 0 && /*#__PURE__*/React.createElement(Section, {
+    title: "Top blockers"
+  }, topBlockers.slice(0, 5).map(([b, c]) => /*#__PURE__*/React.createElement("div", {
+    key: b,
+    className: "stat-row"
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: "#8fa3b1"
+    }
+  }, b), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: "#e07040",
+      background: "#e0704018",
+      border: "1px solid #e0704030",
+      borderRadius: 10,
+      padding: "1px 8px"
+    }
+  }, c, "\xD7")))), /*#__PURE__*/React.createElement(Section, {
+    title: "Arsenal",
+    count: data.techniques.length,
+    defaultOpen: false
+  }, data.techniques.length === 0 ? /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: "#3a4f60"
+    }
+  }, "None yet.") : /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexWrap: "wrap",
+      gap: 6
+    }
+  }, data.techniques.map(t => /*#__PURE__*/React.createElement("span", {
+    key: t,
+    style: {
+      padding: "4px 10px",
+      borderRadius: 4,
+      fontSize: 12,
+      background: "#1a2236",
+      border: "1px solid #2a2a2a",
+      color: "#8fa3b1"
+    }
+  }, t)))), /*#__PURE__*/React.createElement(Section, {
+    title: "Badges",
+    defaultOpen: false
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "repeat(4,1fr)",
+      gap: 8
+    }
+  }, BADGES.map(b => {
+    const e = data.earnedBadges.includes(b.id);
+    return /*#__PURE__*/React.createElement("div", {
+      key: b.id,
+      title: b.desc,
+      style: {
+        padding: "12px 8px",
+        borderRadius: 7,
+        textAlign: "center",
+        background: e ? "#131e30" : "#111827",
+        border: `1px solid ${e ? "rgba(59,130,246,0.2)" : "#172033"}`,
+        opacity: e ? 1 : .3
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 22,
+        marginBottom: 4
+      }
+    }, b.icon), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 9,
+        fontWeight: 600,
+        color: e ? "#3b82f6" : "#3a4f60"
+      }
+    }, b.name));
+  })))), tab === "field" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      animation: "fadeUp .2s ease"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "10px 16px",
+      borderBottom: "1px solid #1f1f1f"
+    }
+  }, /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 12,
+      color: "#3a4f60"
+    }
+  }, "Day-level scouting. Girls noticed, vibe, who you were with.")), (data.fieldReports || []).length === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 40,
+      textAlign: "center",
+      color: "#3a4f60",
+      fontSize: 13
+    }
+  }, "No field reports yet.", /*#__PURE__*/React.createElement("br", null), "Tap + to write one.") : (data.fieldReports || []).map(r => /*#__PURE__*/React.createElement("div", {
+    key: r.id,
+    className: "card",
+    style: {
+      margin: "10px 16px 0"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      marginBottom: 6
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700,
+      color: "#f0f4f8"
+    }
+  }, fmtDate(r.date)), r.venue && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      color: "#4d6070",
+      marginLeft: 8
+    }
+  }, r.venue)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      alignItems: "center"
+    }
+  }, r.noticed > 0 && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: "#4d6070",
+      background: "#172033",
+      border: "1px solid #2a2a2a",
+      borderRadius: 10,
+      padding: "2px 8px"
+    }
+  }, "\uD83D\uDC41 ", r.noticed), /*#__PURE__*/React.createElement("button", {
+    onClick: () => openEditMacro(r),
+    style: {
+      fontSize: 12,
+      color: "#4d6070",
+      background: "none",
+      border: "none",
+      padding: "2px 4px",
+      cursor: "pointer"
+    }
+  }, "\u270E"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      if (confirm("Delete?")) setData(d => ({
+        ...d,
+        fieldReports: d.fieldReports.filter(x => x.id !== r.id)
+      }));
+    },
+    style: {
+      fontSize: 12,
+      color: "#3a4f60",
+      background: "none",
+      border: "none",
+      padding: "2px 4px",
+      cursor: "pointer"
+    }
+  }, "\u2715"))), r.crew && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: "#4d6070",
+      marginBottom: 6
+    }
+  }, "With: ", r.crew), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 13,
+      color: "#c9d8e4",
+      lineHeight: 1.7,
+      whiteSpace: "pre-wrap"
+    }
+  }, r.text))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: 16
+    }
+  })), tab === "micro" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      animation: "fadeUp .2s ease"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "10px 16px",
+      borderBottom: "1px solid #1f1f1f"
+    }
+  }, /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 12,
+      color: "#3a4f60"
+    }
+  }, "Per-girl entries \u2014 missed shots, wins, observations.")), /*#__PURE__*/React.createElement(MicroList, {
+    data: data,
+    setData: setData,
+    onEdit: openEditMicro
+  })), tab === "monthly" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 16,
+      animation: "fadeUp .2s ease"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setMoOff(o => o - 1),
+    style: {
+      background: "none",
+      border: "1px solid #2a2a2a",
+      borderRadius: 6,
+      color: "#4d6070",
+      padding: "6px 12px",
+      fontSize: 14,
+      cursor: "pointer"
+    }
+  }, "\u2039"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 15,
+      fontWeight: 700,
+      color: "#f0f4f8"
+    }
+  }, MONTHS[viewMonth], " ", viewYear), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setMoOff(o => Math.min(o + 1, 0)),
+    disabled: monthOffset === 0,
+    style: {
+      background: "none",
+      border: "1px solid #2a2a2a",
+      borderRadius: 6,
+      color: monthOffset === 0 ? "rgba(255,255,255,0.1)" : "#4d6070",
+      padding: "6px 12px",
+      fontSize: 14,
+      cursor: "pointer"
+    }
+  }, "\u203A")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 14,
+      marginBottom: 12,
+      fontSize: 11,
+      color: "#4d6070"
+    }
+  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDC41 noticed"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: "#e07040"
+    }
+  }, "\u2717 missed"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: "#22c55e"
+    }
+  }, "\u2713 win")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "repeat(7,1fr)",
+      gap: 3,
+      marginBottom: 3
+    }
+  }, ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map(d => /*#__PURE__*/React.createElement("div", {
+    key: d,
+    style: {
+      textAlign: "center",
+      fontSize: 10,
+      color: "#3a4f60",
+      padding: "4px 0"
+    }
+  }, d))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "repeat(7,1fr)",
+      gap: 3
+    }
+  }, Array.from({
+    length: firstDow
+  }).map((_, i) => /*#__PURE__*/React.createElement("div", {
+    key: `e${i}`
+  })), Array.from({
+    length: daysInMonth
+  }).map((_, i) => {
+    const day = i + 1,
+      key = isoDate(new Date(viewYear, viewMonth, day));
+    const dd = dayData[key] || {
+      noticed: 0,
+      couldve: 0,
+      wins: 0,
+      hasData: false
+    };
+    const isToday = key === isoDate(new Date());
+    return /*#__PURE__*/React.createElement("div", {
+      key: key,
+      className: `day-cell${dd.hasData ? " has-data" : ""}${isToday ? " is-today" : ""}`
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        color: isToday ? "#3b82f6" : dd.hasData ? "#8fa3b1" : "#3a4f60",
+        fontWeight: isToday ? 700 : 500,
+        marginBottom: 1
+      }
+    }, day), dd.hasData && /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 1
+      }
+    }, dd.noticed > 0 && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 9,
+        color: "#4d6070"
+      }
+    }, "\uD83D\uDC41", dd.noticed), dd.couldve > 0 && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 9,
+        color: "#e07040"
+      }
+    }, "\u2717", dd.couldve), dd.wins > 0 && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 9,
+        color: "#22c55e"
+      }
+    }, "\u2713", dd.wins)));
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 20,
+      background: "#111827",
+      border: "1px solid #1e1e1e",
+      borderRadius: 8,
+      padding: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: "#4d6070",
+      marginBottom: 12,
+      letterSpacing: .4
+    }
+  }, MONTHS[viewMonth].toUpperCase(), " SUMMARY"), [["Days active", Object.values(dayData).filter(d => d.hasData).length, null], ["Total noticed", Object.values(dayData).reduce((s, d) => s + d.noticed, 0), null], ["Missed", Object.values(dayData).reduce((s, d) => s + d.couldve, 0), "#e07040"], ["Wins", Object.values(dayData).reduce((s, d) => s + d.wins, 0), "#22c55e"]].map(([l, v, c]) => /*#__PURE__*/React.createElement("div", {
+    key: l,
+    className: "stat-row"
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: "#8fa3b1"
+    }
+  }, l), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 14,
+      fontWeight: 700,
+      color: c || "#f0f4f8"
+    }
+  }, v)))), (() => {
+    const prefix = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}`;
+    const mm = (data.microLog || []).filter(m => m.type === "missed" && (m.date || "").startsWith(prefix));
+    const counts = {};
+    mm.forEach(m => (m.blockers || []).forEach(b => {
+      counts[b] = (counts[b] || 0) + 1;
+    }));
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    if (!sorted.length) return null;
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 12,
+        background: "#111827",
+        border: "1px solid #1e1e1e",
+        borderRadius: 8,
+        padding: 16
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12,
+        fontWeight: 600,
+        color: "#4d6070",
+        marginBottom: 12,
+        letterSpacing: .4
+      }
+    }, "TOP BLOCKERS THIS MONTH"), sorted.map(([b, c]) => /*#__PURE__*/React.createElement("div", {
+      key: b,
+      className: "stat-row"
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 13,
+        color: "#8fa3b1"
+      }
+    }, b), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12,
+        fontWeight: 700,
+        color: "#e07040",
+        background: "#e0704018",
+        borderRadius: 10,
+        padding: "1px 8px"
+      }
+    }, c, "\xD7"))));
+  })()), tab === "blueprint" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      animation: "fadeUp .2s ease"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "10px 16px",
+      borderBottom: "1px solid #1f1f1f"
+    }
+  }, /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 12,
+      color: "#3a4f60"
+    }
+  }, "Situation-based playbooks. Know exactly what to do before you're in it.")), (data.blueprints || []).length === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 40,
+      textAlign: "center",
+      color: "#3a4f60",
+      fontSize: 13
+    }
+  }, "No blueprints yet.") : (data.blueprints || []).map(bp => /*#__PURE__*/React.createElement("div", {
+    key: bp.id,
+    className: "bp-card",
+    style: {
+      margin: "10px 16px 0"
+    },
+    onClick: () => setShowBPView(bp)
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 14,
+      fontWeight: 700,
+      color: "#f0f4f8",
+      marginBottom: 4
+    }
+  }, bp.title), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexWrap: "wrap",
+      gap: 5
+    }
+  }, [bp.venue, bp.time, bp.vibe].filter(Boolean).map(t => /*#__PURE__*/React.createElement("span", {
+    key: t,
+    style: {
+      fontSize: 11,
+      color: "#4d6070",
+      background: "#172033",
+      border: "1px solid #2a2a2a",
+      borderRadius: 4,
+      padding: "2px 7px"
+    }
+  }, t)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      marginLeft: 8
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: e => {
+      e.stopPropagation();
+      openEditBP(bp);
+    },
+    style: {
+      fontSize: 12,
+      color: "#4d6070",
+      background: "none",
+      border: "none",
+      padding: "2px 4px",
+      cursor: "pointer"
+    }
+  }, "\u270E"), /*#__PURE__*/React.createElement("button", {
+    onClick: e => {
+      e.stopPropagation();
+      if (confirm("Delete?")) setData(d => ({
+        ...d,
+        blueprints: d.blueprints.filter(x => x.id !== bp.id)
+      }));
+    },
+    style: {
+      fontSize: 12,
+      color: "#3a4f60",
+      background: "none",
+      border: "none",
+      padding: "2px 4px",
+      cursor: "pointer"
+    }
+  }, "\u2715"))), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 12,
+      color: "#4d6070",
+      lineHeight: 1.5
+    }
+  }, bp.opener ? bp.opener.slice(0, 80) + "…" : "Tap to view"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: 16
+    }
+  })), tab === "mindset" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      animation: "fadeUp .2s ease"
+    }
+  }, /*#__PURE__*/React.createElement(Section, {
+    title: "Mindsets",
+    action: {
+      label: "+ Add",
+      fn: () => setShowMind(true)
+    }
+  }, (data.mindsets || []).length === 0 ? /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: "#3a4f60"
+    }
+  }, "No mindsets yet.") : (data.mindsets || []).map(m => /*#__PURE__*/React.createElement("div", {
+    key: m.id,
+    className: "mindset-card"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 14,
+      color: "#d8e6f0",
+      lineHeight: 1.7,
+      flex: 1
+    }
+  }, m.text), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setData(d => ({
+      ...d,
+      mindsets: d.mindsets.filter(x => x.id !== m.id)
+    })),
+    style: {
+      fontSize: 12,
+      color: "#3a4f60",
+      background: "none",
+      border: "none",
+      padding: "2px 4px",
+      cursor: "pointer",
+      flexShrink: 0
+    }
+  }, "\u2715"))))), /*#__PURE__*/React.createElement(Section, {
+    title: "Blockers",
+    action: {
+      label: "+ Add",
+      fn: () => setShowBlock(true)
+    }
+  }, /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 12,
+      color: "#4d6070",
+      marginBottom: 12
+    }
+  }, "Tag these when logging missed opportunities to track patterns."), (data.blockers || []).map(b => /*#__PURE__*/React.createElement("div", {
+    key: b,
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: "8px 0",
+      borderBottom: "1px solid #1a1a1a"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: "#8fa3b1"
+    }
+  }, b), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 10
+    }
+  }, blockerCounts[b] > 0 && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: "#e07040"
+    }
+  }, blockerCounts[b], "\xD7"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setData(d => ({
+      ...d,
+      blockers: d.blockers.filter(x => x !== b)
+    })),
+    style: {
+      fontSize: 12,
+      color: "#3a4f60",
+      background: "none",
+      border: "none",
+      padding: "2px 4px",
+      cursor: "pointer"
+    }
+  }, "\u2715")))))), tab === "vault" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      animation: "fadeUp .2s ease"
+    }
+  }, /*#__PURE__*/React.createElement(Section, {
+    title: "Video library",
+    count: (data.videos || []).length,
+    action: {
+      label: "+ Add",
+      fn: () => setShowVideo(true)
+    }
+  }, (data.videos || []).length === 0 ? /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: "#3a4f60"
+    }
+  }, "No videos yet.") : (data.videos || []).map(v => {
+    const thumb = ytThumb(v.url);
+    return /*#__PURE__*/React.createElement("div", {
+      key: v.id,
+      className: "link-card"
+    }, thumb && /*#__PURE__*/React.createElement("img", {
+      src: thumb,
+      alt: "",
+      style: {
+        width: "100%",
+        height: 110,
+        objectFit: "cover",
+        display: "block"
+      }
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: "10px 12px"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "flex-start"
+      }
+    }, /*#__PURE__*/React.createElement("a", {
+      href: v.url,
+      target: "_blank",
+      rel: "noreferrer",
+      style: {
+        fontSize: 13,
+        fontWeight: 600,
+        color: "#60a5fa",
+        textDecoration: "none",
+        flex: 1
+      }
+    }, v.title || v.url), /*#__PURE__*/React.createElement("button", {
+      onClick: () => setData(d => ({
+        ...d,
+        videos: d.videos.filter(x => x.id !== v.id)
+      })),
+      style: {
+        fontSize: 12,
+        color: "#3a4f60",
+        background: "none",
+        border: "none",
+        padding: "2px 4px",
+        cursor: "pointer",
+        flexShrink: 0
+      }
+    }, "\u2715")), v.note && /*#__PURE__*/React.createElement("p", {
+      style: {
+        fontSize: 12,
+        color: "#4d6070",
+        marginTop: 4,
+        lineHeight: 1.5
+      }
+    }, v.note)));
+  })), /*#__PURE__*/React.createElement(Section, {
+    title: "Example approaches",
+    count: (data.examples || []).length,
+    action: {
+      label: "+ Add",
+      fn: () => setShowEx(true)
+    },
+    defaultOpen: false
+  }, (data.examples || []).length === 0 ? /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: "#3a4f60"
+    }
+  }, "No examples yet.") : (data.examples || []).map(e => {
+    const thumb = ytThumb(e.url);
+    return /*#__PURE__*/React.createElement("div", {
+      key: e.id,
+      className: "link-card"
+    }, thumb && /*#__PURE__*/React.createElement("img", {
+      src: thumb,
+      alt: "",
+      style: {
+        width: "100%",
+        height: 110,
+        objectFit: "cover",
+        display: "block"
+      }
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: "10px 12px"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "flex-start"
+      }
+    }, /*#__PURE__*/React.createElement("a", {
+      href: e.url,
+      target: "_blank",
+      rel: "noreferrer",
+      style: {
+        fontSize: 13,
+        fontWeight: 600,
+        color: "#60a5fa",
+        textDecoration: "none",
+        flex: 1
+      }
+    }, e.title || e.url), /*#__PURE__*/React.createElement("button", {
+      onClick: () => setData(d => ({
+        ...d,
+        examples: d.examples.filter(x => x.id !== e.id)
+      })),
+      style: {
+        fontSize: 12,
+        color: "#3a4f60",
+        background: "none",
+        border: "none",
+        padding: "2px 4px",
+        cursor: "pointer",
+        flexShrink: 0
+      }
+    }, "\u2715")), e.note && /*#__PURE__*/React.createElement("p", {
+      style: {
+        fontSize: 12,
+        color: "#4d6070",
+        marginTop: 4,
+        lineHeight: 1.5
+      }
+    }, e.note)));
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "tab-bar"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "tab-row"
+  }, ROW1.map(t => /*#__PURE__*/React.createElement("button", {
+    key: t.id,
+    className: `tab-btn${tab === t.id ? " active" : ""}`,
+    onClick: () => setTab(t.id)
+  }, t.icon, /*#__PURE__*/React.createElement("span", {
+    className: "tab-label"
+  }, t.label)))), /*#__PURE__*/React.createElement("div", {
+    className: "tab-row tab-row-2"
+  }, ROW2.map(t => /*#__PURE__*/React.createElement("button", {
+    key: t.id,
+    className: `tab-btn${tab === t.id ? " active" : ""}`,
+    onClick: () => setTab(t.id)
+  }, t.icon, /*#__PURE__*/React.createElement("span", {
+    className: "tab-label"
+  }, t.label))))), fabMap[tab] && /*#__PURE__*/React.createElement("button", {
+    className: "fab",
+    onClick: fabMap[tab]
+  }, "+"), /*#__PURE__*/React.createElement("button", {
+    className: "parse-fab",
+    onClick: () => setShowParse(true),
+    title: "Parse & Log voice dump"
+  }, "\uD83C\uDF99\uFE0F"), /*#__PURE__*/React.createElement(ParseModal, {
+    show: showParse,
+    onClose: () => setShowParse(false),
+    onConfirm: confirmParse,
+    todayKey: todayKey
+  }), /*#__PURE__*/React.createElement(BottomSheet, {
+    show: showCLHist,
+    onClose: () => setShowCLHist(false),
+    title: "Checklist history"
+  }, historyDays.length === 0 ? /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 13,
+      color: "#3a4f60"
+    }
+  }, "No history yet. Check off items today to start tracking.") : historyDays.map(d => /*#__PURE__*/React.createElement("div", {
+    key: d.key,
+    style: {
+      padding: "12px 0",
+      borderBottom: "1px solid #1e1e1e"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 6
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      color: "#d8e6f0"
+    }
+  }, d.label), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: d.done === d.total ? "#22c55e" : "#3b82f6"
+    }
+  }, d.done, "/", d.total)), /*#__PURE__*/React.createElement(ProgressBar, {
+    pct: d.total > 0 ? d.done / d.total * 100 : 0,
+    color: d.done === d.total ? "#22c55e" : "#3b82f6",
+    height: 4
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 10,
+      marginTop: 6,
+      flexWrap: "wrap"
+    }
+  }, d.report && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: "#4d6070"
+    }
+  }, "\uD83C\uDF06 ", d.report.noticed || 0, " noticed"), d.micros.filter(m => m.type === "missed").length > 0 && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: "#e07040"
+    }
+  }, "\u2717 ", d.micros.filter(m => m.type === "missed").length, " missed"), d.micros.filter(m => m.type === "win").length > 0 && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: "#22c55e"
+    }
+  }, "\u2713 ", d.micros.filter(m => m.type === "win").length, " wins"))))), /*#__PURE__*/React.createElement(BottomSheet, {
+    show: !!showBPView,
+    onClose: () => setShowBPView(null),
+    title: (showBPView === null || showBPView === void 0 ? void 0 : showBPView.title) || ""
+  }, showBPView && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexWrap: "wrap",
+      gap: 6,
+      marginBottom: 18
+    }
+  }, [showBPView.venue, showBPView.time, showBPView.vibe].filter(Boolean).map(t => /*#__PURE__*/React.createElement("span", {
+    key: t,
+    style: {
+      fontSize: 12,
+      color: "#4d6070",
+      background: "#172033",
+      border: "1px solid #2a2a2a",
+      borderRadius: 4,
+      padding: "3px 9px"
+    }
+  }, t))), /*#__PURE__*/React.createElement(StepRow, {
+    label: "Opener",
+    color: "#60a5fa",
+    text: showBPView.opener || "—"
+  }), /*#__PURE__*/React.createElement(StepRow, {
+    label: "Transition",
+    color: "#9b8fd4",
+    text: showBPView.transition || "—"
+  }), /*#__PURE__*/React.createElement(StepRow, {
+    label: "Hook",
+    color: "#3b82f6",
+    text: showBPView.hook || "—"
+  }), /*#__PURE__*/React.createElement(StepRow, {
+    label: "Close",
+    color: "#22c55e",
+    text: showBPView.close || "—"
+  }), showBPView.notes && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 8,
+      padding: "12px",
+      background: "#1a2236",
+      borderRadius: 6
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      fontWeight: 700,
+      color: "#3a4f60",
+      letterSpacing: .8,
+      marginBottom: 5
+    }
+  }, "NOTES"), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 13,
+      color: "#4d6070",
+      lineHeight: 1.65
+    }
+  }, showBPView.notes)))), /*#__PURE__*/React.createElement(BottomSheet, {
+    show: showBP,
+    onClose: closeBP,
+    title: editBP ? "Edit blueprint" : "New blueprint"
+  }, /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Title"
+  }), /*#__PURE__*/React.createElement(Inp, {
+    placeholder: "Nightlife \u2014 Solo girl at bar",
+    value: bpForm.title,
+    onChange: e => setBpForm(n => ({
+      ...n,
+      title: e.target.value
+    }))
+  })), /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Venue type"
+  }), /*#__PURE__*/React.createElement(Sel, {
+    value: bpForm.venue,
+    onChange: e => setBpForm(n => ({
+      ...n,
+      venue: e.target.value
+    }))
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "\u2014 Select \u2014"), VENUE_TYPES.map(v => /*#__PURE__*/React.createElement("option", {
+    key: v,
+    value: v
+  }, v)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 10,
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(FL, {
+    c: "Time of day"
+  }), /*#__PURE__*/React.createElement(Sel, {
+    value: bpForm.time,
+    onChange: e => setBpForm(n => ({
+      ...n,
+      time: e.target.value
+    }))
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "\u2014"), TIME_OF_DAY.map(v => /*#__PURE__*/React.createElement("option", {
+    key: v,
+    value: v
+  }, v)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(FL, {
+    c: "Vibe"
+  }), /*#__PURE__*/React.createElement(Sel, {
+    value: bpForm.vibe,
+    onChange: e => setBpForm(n => ({
+      ...n,
+      vibe: e.target.value
+    }))
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "\u2014"), VIBE_TYPES.map(v => /*#__PURE__*/React.createElement("option", {
+    key: v,
+    value: v
+  }, v))))), /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "\uD83D\uDD35 Opener"
+  }), /*#__PURE__*/React.createElement(TA, {
+    rows: 3,
+    placeholder: "What you say first\u2026",
+    value: bpForm.opener,
+    onChange: e => setBpForm(n => ({
+      ...n,
+      opener: e.target.value
+    }))
+  })), /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "\uD83D\uDFE3 Transition"
+  }), /*#__PURE__*/React.createElement(TA, {
+    rows: 3,
+    placeholder: "How you keep it going\u2026",
+    value: bpForm.transition,
+    onChange: e => setBpForm(n => ({
+      ...n,
+      transition: e.target.value
+    }))
+  })), /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "\uD83D\uDFE1 Hook"
+  }), /*#__PURE__*/React.createElement(TA, {
+    rows: 3,
+    placeholder: "How you create investment\u2026",
+    value: bpForm.hook,
+    onChange: e => setBpForm(n => ({
+      ...n,
+      hook: e.target.value
+    }))
+  })), /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "\uD83D\uDFE2 Close"
+  }), /*#__PURE__*/React.createElement(TA, {
+    rows: 2,
+    placeholder: "How you get the number / IG\u2026",
+    value: bpForm.close,
+    onChange: e => setBpForm(n => ({
+      ...n,
+      close: e.target.value
+    }))
+  })), /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Notes"
+  }), /*#__PURE__*/React.createElement(TA, {
+    rows: 2,
+    placeholder: "Tips, caveats, context\u2026",
+    value: bpForm.notes,
+    onChange: e => setBpForm(n => ({
+      ...n,
+      notes: e.target.value
+    }))
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: closeBP
+  }, "Cancel"), /*#__PURE__*/React.createElement(Btn, {
+    onClick: saveBP,
+    disabled: !bpForm.title.trim(),
+    style: {
+      flex: 1
+    }
+  }, editBP ? "Save changes" : "Save blueprint"))), /*#__PURE__*/React.createElement(BottomSheet, {
+    show: showLog,
+    onClose: () => setShowLog(false),
+    title: "Log approach"
+  }, /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Outcome"
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 7
+    }
+  }, Object.entries(OUTCOME_META).map(([k, v]) => /*#__PURE__*/React.createElement("button", {
+    key: k,
+    className: "outcome-chip",
+    onClick: () => setLogEntry(e => ({
+      ...e,
+      outcome: k
+    })),
+    style: {
+      borderColor: logEntry.outcome === k ? v.color : "rgba(255,255,255,0.08)",
+      color: logEntry.outcome === k ? v.color : "#4d6070",
+      background: logEntry.outcome === k ? `${v.color}14` : "transparent"
+    }
+  }, v.label, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: "block",
+      fontSize: 10,
+      opacity: .55,
+      fontWeight: 400
+    }
+  }, "+", XP_REWARDS[k], " xp"))))), /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Technique"
+  }), /*#__PURE__*/React.createElement(Sel, {
+    value: logEntry.technique,
+    onChange: e => setLogEntry(n => ({
+      ...n,
+      technique: e.target.value
+    }))
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "\u2014 Select \u2014"), TECHNIQUES.map(t => /*#__PURE__*/React.createElement("option", {
+    key: t,
+    value: t
+  }, t)))), /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Location"
+  }), /*#__PURE__*/React.createElement(Inp, {
+    placeholder: "Coffee shop, gym, street\u2026",
+    value: logEntry.location,
+    onChange: e => setLogEntry(n => ({
+      ...n,
+      location: e.target.value
+    }))
+  })), /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Notes"
+  }), /*#__PURE__*/React.createElement(TA, {
+    rows: 3,
+    placeholder: "What happened?",
+    value: logEntry.notes,
+    onChange: e => setLogEntry(n => ({
+      ...n,
+      notes: e.target.value
+    }))
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: () => setShowLog(false)
+  }, "Cancel"), /*#__PURE__*/React.createElement(Btn, {
+    onClick: logApproach,
+    style: {
+      flex: 1
+    }
+  }, "\u2713 Log it \u2014 +", XP_REWARDS[logEntry.outcome], " xp"))), /*#__PURE__*/React.createElement(BottomSheet, {
+    show: showMacro,
+    onClose: closeMacro,
+    title: editMacro ? "Edit field report" : "Field report"
+  }, /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Date"
+  }), /*#__PURE__*/React.createElement(Inp, {
+    type: "date",
+    value: macroForm.date,
+    onChange: e => setMacroForm(n => ({
+      ...n,
+      date: e.target.value
+    }))
+  })), /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Venue"
+  }), /*#__PURE__*/React.createElement(Inp, {
+    placeholder: "No Idea Bar, Du West Fest\u2026",
+    value: macroForm.venue,
+    onChange: e => setMacroForm(n => ({
+      ...n,
+      venue: e.target.value
+    }))
+  })), /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Who you were with"
+  }), /*#__PURE__*/React.createElement(Inp, {
+    placeholder: "Jhon, Joel\u2026",
+    value: macroForm.crew,
+    onChange: e => setMacroForm(n => ({
+      ...n,
+      crew: e.target.value
+    }))
+  })), /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Girls noticed"
+  }), /*#__PURE__*/React.createElement(Inp, {
+    type: "number",
+    min: "0",
+    placeholder: "0",
+    value: macroForm.noticed,
+    onChange: e => setMacroForm(n => ({
+      ...n,
+      noticed: e.target.value
+    }))
+  })), /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Notes"
+  }), /*#__PURE__*/React.createElement(TA, {
+    rows: 6,
+    placeholder: "Asian girl in white tank top…\nGroup of 3 near the bar…",
+    value: macroForm.text,
+    onChange: e => setMacroForm(n => ({
+      ...n,
+      text: e.target.value
+    }))
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: closeMacro
+  }, "Cancel"), /*#__PURE__*/React.createElement(Btn, {
+    onClick: saveMacro,
+    disabled: !macroForm.text.trim() && !macroForm.venue.trim(),
+    style: {
+      flex: 1
+    }
+  }, editMacro ? "Save changes" : "Save report"))), /*#__PURE__*/React.createElement(BottomSheet, {
+    show: showMicro,
+    onClose: closeMicro,
+    title: editMicro ? "Edit entry" : "Interaction log"
+  }, /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Type"
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 6
+    }
+  }, Object.entries(MICRO_TYPES).map(([k, v]) => /*#__PURE__*/React.createElement("button", {
+    key: k,
+    className: "type-chip",
+    onClick: () => setMicroForm(e => ({
+      ...e,
+      type: k
+    })),
+    style: {
+      borderColor: microForm.type === k ? v.color : "rgba(255,255,255,0.08)",
+      color: microForm.type === k ? v.color : "#4d6070",
+      background: microForm.type === k ? v.bg : "transparent"
+    }
+  }, v.label)))), /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Date"
+  }), /*#__PURE__*/React.createElement(Inp, {
+    type: "date",
+    value: microForm.date,
+    onChange: e => setMicroForm(n => ({
+      ...n,
+      date: e.target.value
+    }))
+  })), /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Venue"
+  }), /*#__PURE__*/React.createElement(Inp, {
+    placeholder: "AMPM, Big Trouble\u2026",
+    value: microForm.venue,
+    onChange: e => setMicroForm(n => ({
+      ...n,
+      venue: e.target.value
+    }))
+  })), /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Entry"
+  }), /*#__PURE__*/React.createElement(TA, {
+    rows: 5,
+    placeholder: "Regular girl @m1sschin…\nShould've said: I see you here all the time — what's your name?",
+    value: microForm.text,
+    onChange: e => setMicroForm(n => ({
+      ...n,
+      text: e.target.value
+    }))
+  })), microForm.type === "missed" && (data.blockers || []).length > 0 && /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Why didn't you approach?"
+  }), (data.blockers || []).map(b => {
+    const sel = (microForm.blockers || []).includes(b);
+    return /*#__PURE__*/React.createElement("button", {
+      key: b,
+      className: `blocker-chip${sel ? " sel" : ""}`,
+      onClick: () => setMicroForm(f => ({
+        ...f,
+        blockers: sel ? f.blockers.filter(x => x !== b) : [...(f.blockers || []), b]
+      }))
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 13
+      }
+    }, sel ? "✓" : "○"), /*#__PURE__*/React.createElement("span", null, b));
+  })), microForm.type === "missed" && (data.blueprints || []).length > 0 && /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Which blueprint applies?"
+  }), (data.blueprints || []).map(bp => {
+    const sel = microForm.blueprintId === bp.id;
+    return /*#__PURE__*/React.createElement("button", {
+      key: bp.id,
+      className: `bp-chip${sel ? " sel" : ""}`,
+      onClick: () => setMicroForm(f => ({
+        ...f,
+        blueprintId: sel ? null : bp.id
+      }))
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 13
+      }
+    }, sel ? "✓" : "○"), /*#__PURE__*/React.createElement("span", {
+      style: {
+        flex: 1
+      }
+    }, bp.title));
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: closeMicro
+  }, "Cancel"), /*#__PURE__*/React.createElement(Btn, {
+    onClick: saveMicro,
+    disabled: !microForm.text.trim(),
+    style: {
+      flex: 1
+    }
+  }, editMicro ? "Save changes" : "Save entry"))), /*#__PURE__*/React.createElement(BottomSheet, {
+    show: showAddCL,
+    onClose: () => setShowAddCL(false),
+    title: "Add checklist item"
+  }, /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Icon (emoji)"
+  }), /*#__PURE__*/React.createElement(Inp, {
+    placeholder: "\uD83D\uDCAA",
+    value: clForm.icon,
+    onChange: e => setClForm(n => ({
+      ...n,
+      icon: e.target.value
+    }))
+  })), /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Label"
+  }), /*#__PURE__*/React.createElement(Inp, {
+    placeholder: "Meditated, journaled\u2026",
+    value: clForm.label,
+    onChange: e => setClForm(n => ({
+      ...n,
+      label: e.target.value
+    }))
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: () => setShowAddCL(false)
+  }, "Cancel"), /*#__PURE__*/React.createElement(Btn, {
+    onClick: addChecklistItem,
+    disabled: !clForm.label.trim(),
+    style: {
+      flex: 1
+    }
+  }, "Add"))), /*#__PURE__*/React.createElement(BottomSheet, {
+    show: showAddBL,
+    onClose: () => setShowAddBL(false),
+    title: "Add bucket list item"
+  }, /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Experience"
+  }), /*#__PURE__*/React.createElement(Inp, {
+    placeholder: "Hit on a girl at the airport lounge\u2026",
+    value: blForm,
+    onChange: e => setBlForm(e.target.value)
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: () => setShowAddBL(false)
+  }, "Cancel"), /*#__PURE__*/React.createElement(Btn, {
+    onClick: addBucketItem,
+    disabled: !blForm.trim(),
+    style: {
+      flex: 1
+    }
+  }, "Add"))), /*#__PURE__*/React.createElement(BottomSheet, {
+    show: showMind,
+    onClose: () => setShowMind(false),
+    title: "Add mindset"
+  }, /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Mindset"
+  }), /*#__PURE__*/React.createElement(TA, {
+    rows: 4,
+    placeholder: "Let her reject you \u2014 never reject yourself.",
+    value: mindForm,
+    onChange: e => setMindForm(e.target.value)
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: () => setShowMind(false)
+  }, "Cancel"), /*#__PURE__*/React.createElement(Btn, {
+    onClick: addMindset,
+    disabled: !mindForm.trim(),
+    style: {
+      flex: 1
+    }
+  }, "Save"))), /*#__PURE__*/React.createElement(BottomSheet, {
+    show: showBlock,
+    onClose: () => setShowBlock(false),
+    title: "Add blocker"
+  }, /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Blocker"
+  }), /*#__PURE__*/React.createElement(Inp, {
+    placeholder: "She seemed in a hurry\u2026",
+    value: blockForm,
+    onChange: e => setBlockForm(e.target.value)
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: () => setShowBlock(false)
+  }, "Cancel"), /*#__PURE__*/React.createElement(Btn, {
+    onClick: addBlocker,
+    disabled: !blockForm.trim(),
+    style: {
+      flex: 1
+    }
+  }, "Save"))), /*#__PURE__*/React.createElement(BottomSheet, {
+    show: showVideo,
+    onClose: () => setShowVideo(false),
+    title: "Add video"
+  }, /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "YouTube URL"
+  }), /*#__PURE__*/React.createElement(Inp, {
+    placeholder: "https://youtube.com/watch?v=\u2026",
+    value: videoForm.url,
+    onChange: e => setVideoForm(n => ({
+      ...n,
+      url: e.target.value
+    }))
+  })), /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Title"
+  }), /*#__PURE__*/React.createElement(Inp, {
+    placeholder: "Best cold approach\u2026",
+    value: videoForm.title,
+    onChange: e => setVideoForm(n => ({
+      ...n,
+      title: e.target.value
+    }))
+  })), /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Note"
+  }), /*#__PURE__*/React.createElement(TA, {
+    rows: 2,
+    placeholder: "Why this inspires you\u2026",
+    value: videoForm.note,
+    onChange: e => setVideoForm(n => ({
+      ...n,
+      note: e.target.value
+    }))
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: () => setShowVideo(false)
+  }, "Cancel"), /*#__PURE__*/React.createElement(Btn, {
+    onClick: saveVideo,
+    disabled: !videoForm.url.trim(),
+    style: {
+      flex: 1
+    }
+  }, "Save"))), /*#__PURE__*/React.createElement(BottomSheet, {
+    show: showEx,
+    onClose: () => setShowEx(false),
+    title: "Add example approach"
+  }, /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "YouTube URL"
+  }), /*#__PURE__*/React.createElement(Inp, {
+    placeholder: "https://youtube.com/watch?v=\u2026",
+    value: exForm.url,
+    onChange: e => setExForm(n => ({
+      ...n,
+      url: e.target.value
+    }))
+  })), /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Title"
+  }), /*#__PURE__*/React.createElement(Inp, {
+    placeholder: "Smooth street approach\u2026",
+    value: exForm.title,
+    onChange: e => setExForm(n => ({
+      ...n,
+      title: e.target.value
+    }))
+  })), /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "What made it great"
+  }), /*#__PURE__*/React.createElement(TA, {
+    rows: 3,
+    placeholder: "The way he held eye contact\u2026",
+    value: exForm.note,
+    onChange: e => setExForm(n => ({
+      ...n,
+      note: e.target.value
+    }))
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: () => setShowEx(false)
+  }, "Cancel"), /*#__PURE__*/React.createElement(Btn, {
+    onClick: saveEx,
+    disabled: !exForm.url.trim(),
+    style: {
+      flex: 1
+    }
+  }, "Save"))), xpToast && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "fixed",
+      top: 16,
+      right: 16,
+      zIndex: 500,
+      background: "#172033",
+      border: "1px solid #333",
+      borderRadius: 7,
+      padding: "8px 14px",
+      fontSize: 13,
+      fontWeight: 700,
+      color: "#3b82f6",
+      animation: "toastIn 2.2s ease forwards",
+      pointerEvents: "none"
+    }
+  }, xpToast), levelUpMsg && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "fixed",
+      inset: 0,
+      zIndex: 400,
+      pointerEvents: "none",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "rgba(0,0,0,.7)",
+      animation: "levelPop 3s ease forwards"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#111827",
+      border: "1px solid #2e2e2e",
+      borderRadius: 10,
+      padding: "28px 36px",
+      textAlign: "center"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: "#4d6070",
+      letterSpacing: 2,
+      marginBottom: 8
+    }
+  }, "LEVEL UP"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 24,
+      fontWeight: 800,
+      color: "#3b82f6"
+    }
+  }, levelUpMsg))));
+}
+
+// ── ParseModal ───────────────────────────────────────────────
+function ParseModal({
+  show,
+  onClose,
+  onConfirm,
+  todayKey
+}) {
+  const [transcript, setTranscript] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [parsed, setParsed] = useState(null); // { fieldReport, microEntries, approaches }
+  const [editField, setEditField] = useState(null);
+  const [editMicros, setEditMicros] = useState(null);
+  const [editApps, setEditApps] = useState(null);
+  useEffect(() => {
+    document.body.style.overflow = show ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [show]);
+  function reset() {
+    setTranscript("");
+    setParsed(null);
+    setError(null);
+    setEditField(null);
+    setEditMicros(null);
+    setEditApps(null);
+  }
+  function handleClose() {
+    reset();
+    onClose();
+  }
+  async function doParse() {
+    if (!transcript.trim()) return;
+    setLoading(true);
+    setError(null);
+    setParsed(null);
+    const prompt = `You are parsing a voice transcript from someone journaling about their day approaching women. Extract structured data.
+
+Return ONLY valid JSON, no markdown, no explanation. Schema:
+{
+  "fieldReport": {
+    "date": "${todayKey}",
+    "venue": "string or null",
+    "crew": "string or null — who they were with",
+    "noticed": number — total girls noticed/mentioned,
+    "text": "string — a clean summary of the overall day/outing in 2-4 sentences"
+  } or null if no outing mentioned,
+  "microEntries": [
+    {
+      "date": "${todayKey}",
+      "type": "missed" | "win" | "note",
+      "venue": "string or null",
+      "text": "string — specific description of this girl/interaction, what happened, what was said or should have been said",
+      "blockers": []
+    }
+  ] — one entry per specific girl or interaction mentioned. Empty array if none.,
+  "approaches": [
+    {
+      "outcome": "approached" | "number" | "date" | "rejected",
+      "location": "string or null",
+      "technique": "",
+      "notes": "string or null"
+    }
+  ] — only for actual approaches made (not missed ones). Empty array if none.
+}
+
+Transcript:
+${transcript}`;
+    let _key = localStorage.getItem("gd_api_key");
+    if (!_key) {
+      _key = window.prompt("Enter your Anthropic API key.\nGet one at console.anthropic.com\nStored only in your browser.");
+      if (!_key) { setLoading(false); return; }
+      localStorage.setItem("gd_api_key", _key.trim());
+      _key = _key.trim();
+    }
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": _key,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true"
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1500,
+          messages: [{
+            role: "user",
+            content: prompt
+          }]
+        })
+      });
+      const data = await res.json();
+      const text = (data.content || []).map(c => c.text || "").join("");
+      const clean = text.replace(/```json|```/g, "").trim();
+      const result = JSON.parse(clean);
+      setParsed(result);
+      setEditField(result.fieldReport ? {
+        ...result.fieldReport
+      } : null);
+      setEditMicros(result.microEntries ? [...result.microEntries.map(m => ({
+        ...m,
+        _keep: true
+      }))] : []);
+      setEditApps(result.approaches ? [...result.approaches.map(a => ({
+        ...a,
+        _keep: true
+      }))] : []);
+    } catch (e) {
+      setError("Couldn't parse that. Try again or simplify the transcript.");
+    }
+    setLoading(false);
+  }
+  function handleConfirm() {
+    onConfirm({
+      fieldReport: editField,
+      microEntries: (editMicros || []).filter(m => m._keep),
+      approaches: (editApps || []).filter(a => a._keep)
+    });
+    reset();
+  }
+  if (!show) return null;
+  const hasSomething = editField || (editMicros || []).filter(m => m._keep).length > 0 || (editApps || []).filter(a => a._keep).length > 0;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "fixed",
+      inset: 0,
+      background: "rgba(0,0,0,.88)",
+      zIndex: 300,
+      display: "flex",
+      alignItems: "flex-end"
+    },
+    onClick: handleClose
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#0d1525",
+      borderRadius: "14px 14px 0 0",
+      border: "1px solid #2a2a2a",
+      borderBottom: "none",
+      width: "100%",
+      maxHeight: "94vh",
+      overflowY: "auto",
+      padding: "20px 16px 36px"
+    },
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 36,
+      height: 4,
+      background: "rgba(255,255,255,0.08)",
+      borderRadius: 2,
+      margin: "0 auto 18px"
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 10,
+      marginBottom: 6
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 20
+    }
+  }, "\uD83C\uDF99\uFE0F"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 15,
+      fontWeight: 700,
+      color: "#f0f4f8"
+    }
+  }, "Parse & Log"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: "#3a4f60"
+    }
+  }, "Paste your Wispr Flow transcript \u2014 AI extracts everything"))), !parsed && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 16,
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("textarea", {
+    rows: 8,
+    placeholder: "Went out to No Idea Bar with Jhon and Joel. Du West Fest vibes. Saw maybe 5 girls total. There was this Asian girl in a white tank top who sat right in front of me — should've said something but didn't. Group of 3 girls near the bar, one kept looking at me. One brown girl watching from the wall. Didn't approach anyone tonight.",
+    value: transcript,
+    onChange: e => setTranscript(e.target.value),
+    style: {
+      background: "#1a2236",
+      border: "1px solid #2a2a2a",
+      color: "#f0f4f8",
+      borderRadius: 8,
+      padding: "12px",
+      fontFamily: "'DM Sans',sans-serif",
+      fontSize: 13,
+      width: "100%",
+      outline: "none",
+      resize: "vertical",
+      lineHeight: 1.7
+    }
+  })), error && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      color: "#e05555",
+      marginBottom: 12,
+      padding: "10px 12px",
+      background: "#e0555518",
+      border: "1px solid #e0555530",
+      borderRadius: 6
+    }
+  }, error), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: handleClose,
+    style: {
+      padding: "11px 16px",
+      borderRadius: 7,
+      fontSize: 14,
+      fontWeight: 700,
+      border: "1px solid #2e2e2e",
+      background: "transparent",
+      color: "#4d6070",
+      fontFamily: "'DM Sans',sans-serif",
+      cursor: "pointer"
+    }
+  }, "Cancel"), /*#__PURE__*/React.createElement("button", {
+    onClick: doParse,
+    disabled: loading || !transcript.trim(),
+    style: {
+      flex: 1,
+      padding: "11px",
+      borderRadius: 7,
+      fontSize: 14,
+      fontWeight: 700,
+      border: "none",
+      fontFamily: "'DM Sans',sans-serif",
+      cursor: "pointer",
+      background: loading || !transcript.trim() ? "rgba(255,255,255,0.08)" : "#3b82f6",
+      color: loading || !transcript.trim() ? "#3a4f60" : "#0b1120"
+    }
+  }, loading ? "Parsing…" : "✨ Parse & Preview"))), parsed && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 4,
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: "#4d6070",
+      marginBottom: 12
+    }
+  }, "Review what was extracted. Toggle items off to skip them, edit text inline."), editField && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: "#4d6070",
+      letterSpacing: .6,
+      textTransform: "uppercase"
+    }
+  }, "Field Report"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setEditField(null),
+    style: {
+      fontSize: 11,
+      color: "#e05555",
+      background: "none",
+      border: "none",
+      cursor: "pointer"
+    }
+  }, "Remove")), /*#__PURE__*/React.createElement("div", {
+    className: "parse-preview-card"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 8,
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: "#4d6070",
+      marginBottom: 3
+    }
+  }, "VENUE"), /*#__PURE__*/React.createElement("input", {
+    value: editField.venue || "",
+    onChange: e => setEditField(f => ({
+      ...f,
+      venue: e.target.value
+    })),
+    style: {
+      background: "#0b1120",
+      border: "1px solid #2a2a2a",
+      color: "#f0f4f8",
+      borderRadius: 5,
+      padding: "6px 8px",
+      fontSize: 12,
+      width: "100%",
+      fontFamily: "'DM Sans',sans-serif",
+      outline: "none"
+    }
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: "#4d6070",
+      marginBottom: 3
+    }
+  }, "NOTICED"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    value: editField.noticed || 0,
+    onChange: e => setEditField(f => ({
+      ...f,
+      noticed: parseInt(e.target.value) || 0
+    })),
+    style: {
+      background: "#0b1120",
+      border: "1px solid #2a2a2a",
+      color: "#f0f4f8",
+      borderRadius: 5,
+      padding: "6px 8px",
+      fontSize: 12,
+      width: "100%",
+      fontFamily: "'DM Sans',sans-serif",
+      outline: "none"
+    }
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: "#4d6070",
+      marginBottom: 3
+    }
+  }, "NOTES"), /*#__PURE__*/React.createElement("textarea", {
+    value: editField.text || "",
+    onChange: e => setEditField(f => ({
+      ...f,
+      text: e.target.value
+    })),
+    rows: 3,
+    style: {
+      background: "#0b1120",
+      border: "1px solid #2a2a2a",
+      color: "#f0f4f8",
+      borderRadius: 5,
+      padding: "7px 8px",
+      fontSize: 12,
+      width: "100%",
+      fontFamily: "'DM Sans',sans-serif",
+      outline: "none",
+      resize: "vertical",
+      lineHeight: 1.6
+    }
+  }))), (editMicros || []).length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: "#4d6070",
+      letterSpacing: .6,
+      textTransform: "uppercase",
+      marginBottom: 8
+    }
+  }, "Micro Log (", editMicros.filter(m => m._keep).length, " entries)"), editMicros.map((m, i) => {
+    var _MICRO_TYPES$m$type;
+    return /*#__PURE__*/React.createElement("div", {
+      key: i,
+      className: "parse-preview-card",
+      style: {
+        borderLeft: `3px solid ${m._keep ? ((_MICRO_TYPES$m$type = MICRO_TYPES[m.type]) === null || _MICRO_TYPES$m$type === void 0 ? void 0 : _MICRO_TYPES$m$type.color) || "#4d6070" : "rgba(255,255,255,0.1)"}`,
+        opacity: m._keep ? 1 : .4,
+        marginBottom: 8
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 8
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        gap: 6,
+        alignItems: "center"
+      }
+    }, ["missed", "win", "note"].map(t => {
+      var _MICRO_TYPES$t, _MICRO_TYPES$t2, _MICRO_TYPES$t3, _MICRO_TYPES$t4;
+      return /*#__PURE__*/React.createElement("button", {
+        key: t,
+        onClick: () => setEditMicros(ms => ms.map((x, j) => j === i ? {
+          ...x,
+          type: t
+        } : x)),
+        style: {
+          padding: "3px 8px",
+          borderRadius: 10,
+          fontSize: 11,
+          fontWeight: 600,
+          cursor: "pointer",
+          fontFamily: "'DM Sans',sans-serif",
+          border: `1px solid ${m.type === t ? (_MICRO_TYPES$t = MICRO_TYPES[t]) === null || _MICRO_TYPES$t === void 0 ? void 0 : _MICRO_TYPES$t.color : "rgba(255,255,255,0.08)"}`,
+          background: m.type === t ? (_MICRO_TYPES$t2 = MICRO_TYPES[t]) === null || _MICRO_TYPES$t2 === void 0 ? void 0 : _MICRO_TYPES$t2.bg : "transparent",
+          color: m.type === t ? (_MICRO_TYPES$t3 = MICRO_TYPES[t]) === null || _MICRO_TYPES$t3 === void 0 ? void 0 : _MICRO_TYPES$t3.color : "#3a4f60"
+        }
+      }, (_MICRO_TYPES$t4 = MICRO_TYPES[t]) === null || _MICRO_TYPES$t4 === void 0 ? void 0 : _MICRO_TYPES$t4.label);
+    })), /*#__PURE__*/React.createElement("button", {
+      onClick: () => setEditMicros(ms => ms.map((x, j) => j === i ? {
+        ...x,
+        _keep: !x._keep
+      } : x)),
+      style: {
+        fontSize: 11,
+        color: m._keep ? "#e05555" : "#22c55e",
+        background: "none",
+        border: "none",
+        cursor: "pointer"
+      }
+    }, m._keep ? "Remove" : "Keep")), /*#__PURE__*/React.createElement("textarea", {
+      value: m.text || "",
+      onChange: e => setEditMicros(ms => ms.map((x, j) => j === i ? {
+        ...x,
+        text: e.target.value
+      } : x)),
+      rows: 2,
+      style: {
+        background: "#0b1120",
+        border: "1px solid #2a2a2a",
+        color: "#f0f4f8",
+        borderRadius: 5,
+        padding: "7px 8px",
+        fontSize: 12,
+        width: "100%",
+        fontFamily: "'DM Sans',sans-serif",
+        outline: "none",
+        resize: "vertical",
+        lineHeight: 1.6
+      }
+    }));
+  })), (editApps || []).length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: "#4d6070",
+      letterSpacing: .6,
+      textTransform: "uppercase",
+      marginBottom: 8
+    }
+  }, "Approaches (", editApps.filter(a => a._keep).length, ")"), editApps.map((a, i) => {
+    var _OUTCOME_META$a$outco;
+    return /*#__PURE__*/React.createElement("div", {
+      key: i,
+      className: "parse-preview-card",
+      style: {
+        opacity: a._keep ? 1 : .4,
+        marginBottom: 8,
+        borderLeft: `3px solid ${a._keep ? ((_OUTCOME_META$a$outco = OUTCOME_META[a.outcome]) === null || _OUTCOME_META$a$outco === void 0 ? void 0 : _OUTCOME_META$a$outco.color) || "#4d6070" : "rgba(255,255,255,0.1)"}`
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 6
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        gap: 5
+      }
+    }, ["approached", "number", "date", "rejected"].map(o => {
+      var _OUTCOME_META$o, _OUTCOME_META$o2, _OUTCOME_META$o3, _OUTCOME_META$o4;
+      return /*#__PURE__*/React.createElement("button", {
+        key: o,
+        onClick: () => setEditApps(as => as.map((x, j) => j === i ? {
+          ...x,
+          outcome: o
+        } : x)),
+        style: {
+          padding: "3px 7px",
+          borderRadius: 10,
+          fontSize: 10,
+          fontWeight: 600,
+          cursor: "pointer",
+          fontFamily: "'DM Sans',sans-serif",
+          border: `1px solid ${a.outcome === o ? (_OUTCOME_META$o = OUTCOME_META[o]) === null || _OUTCOME_META$o === void 0 ? void 0 : _OUTCOME_META$o.color : "rgba(255,255,255,0.08)"}`,
+          background: a.outcome === o ? `${(_OUTCOME_META$o2 = OUTCOME_META[o]) === null || _OUTCOME_META$o2 === void 0 ? void 0 : _OUTCOME_META$o2.color}14` : "transparent",
+          color: a.outcome === o ? (_OUTCOME_META$o3 = OUTCOME_META[o]) === null || _OUTCOME_META$o3 === void 0 ? void 0 : _OUTCOME_META$o3.color : "#3a4f60"
+        }
+      }, (_OUTCOME_META$o4 = OUTCOME_META[o]) === null || _OUTCOME_META$o4 === void 0 ? void 0 : _OUTCOME_META$o4.label);
+    })), /*#__PURE__*/React.createElement("button", {
+      onClick: () => setEditApps(as => as.map((x, j) => j === i ? {
+        ...x,
+        _keep: !x._keep
+      } : x)),
+      style: {
+        fontSize: 11,
+        color: a._keep ? "#e05555" : "#22c55e",
+        background: "none",
+        border: "none",
+        cursor: "pointer"
+      }
+    }, a._keep ? "Remove" : "Keep")), a.location && /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: "#4d6070"
+      }
+    }, "\uD83D\uDCCD ", a.location), a.notes && /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12,
+        color: "#8fa3b1",
+        marginTop: 4
+      }
+    }, a.notes));
+  })), !editField && !(editMicros || []).length && !(editApps || []).length && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "20px 0",
+      textAlign: "center",
+      color: "#3a4f60",
+      fontSize: 13
+    }
+  }, "Nothing was extracted. Try a more detailed transcript.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      setParsed(null);
+      setEditField(null);
+      setEditMicros(null);
+      setEditApps(null);
+    },
+    style: {
+      padding: "11px 16px",
+      borderRadius: 7,
+      fontSize: 14,
+      fontWeight: 700,
+      border: "1px solid #2e2e2e",
+      background: "transparent",
+      color: "#4d6070",
+      fontFamily: "'DM Sans',sans-serif",
+      cursor: "pointer"
+    }
+  }, "\u2190 Re-parse"), /*#__PURE__*/React.createElement("button", {
+    onClick: handleConfirm,
+    disabled: !hasSomething,
+    style: {
+      flex: 1,
+      padding: "11px",
+      borderRadius: 7,
+      fontSize: 14,
+      fontWeight: 700,
+      border: "none",
+      fontFamily: "'DM Sans',sans-serif",
+      cursor: "pointer",
+      background: hasSomething ? "#3b82f6" : "rgba(255,255,255,0.08)",
+      color: hasSomething ? "#0b1120" : "#3a4f60"
+    }
+  }, "\u2713 Save to dashboard")))));
+}
+
+// ── MicroList ────────────────────────────────────────────────
+function MicroList({
+  data,
+  setData,
+  onEdit
+}) {
+  const [filter, setFilter] = useState("all");
+  const list = (data.microLog || []).filter(m => filter === "all" || m.type === filter);
+  const bpMap = {};
+  (data.blueprints || []).forEach(b => {
+    bpMap[b.id] = b.title;
+  });
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 6,
+      padding: "10px 16px",
+      overflowX: "auto"
+    }
+  }, [["all", "All"], ...Object.entries(MICRO_TYPES).map(([k, v]) => [k, v.label])].map(([k, l]) => {
+    var _MICRO_TYPES$k;
+    const count = k === "all" ? (data.microLog || []).length : (data.microLog || []).filter(m => m.type === k).length;
+    const isActive = filter === k,
+      color = k === "all" ? "#3b82f6" : (_MICRO_TYPES$k = MICRO_TYPES[k]) === null || _MICRO_TYPES$k === void 0 ? void 0 : _MICRO_TYPES$k.color;
+    return /*#__PURE__*/React.createElement("button", {
+      key: k,
+      onClick: () => setFilter(k),
+      style: {
+        padding: "6px 12px",
+        borderRadius: 20,
+        fontSize: 12,
+        fontWeight: 600,
+        whiteSpace: "nowrap",
+        cursor: "pointer",
+        border: isActive ? `1px solid ${color}` : "1px solid #2a2a2a",
+        background: isActive ? `${color}18` : "transparent",
+        color: isActive ? color : "#4d6070",
+        fontFamily: "'DM Sans',sans-serif",
+        transition: "all .15s"
+      }
+    }, l, " ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        opacity: .6
+      }
+    }, "(", count, ")"));
+  })), list.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "30px 16px",
+      textAlign: "center",
+      color: "#3a4f60",
+      fontSize: 13
+    }
+  }, "No entries yet. Tap + to add one.") : list.map(m => {
+    var _MICRO_TYPES$m$type2, _MICRO_TYPES$m$type3, _MICRO_TYPES$m$type4, _MICRO_TYPES$m$type5;
+    return /*#__PURE__*/React.createElement("div", {
+      key: m.id,
+      style: {
+        margin: "0 16px 10px",
+        background: "#111827",
+        border: "1px solid #1e1e1e",
+        borderRadius: 8,
+        padding: 14,
+        borderLeft: `3px solid ${((_MICRO_TYPES$m$type2 = MICRO_TYPES[m.type]) === null || _MICRO_TYPES$m$type2 === void 0 ? void 0 : _MICRO_TYPES$m$type2.color) || "#3a4f60"}`
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        marginBottom: 6
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        gap: 6,
+        alignItems: "center",
+        flexWrap: "wrap"
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10,
+        fontWeight: 600,
+        padding: "2px 8px",
+        borderRadius: 10,
+        background: (_MICRO_TYPES$m$type3 = MICRO_TYPES[m.type]) === null || _MICRO_TYPES$m$type3 === void 0 ? void 0 : _MICRO_TYPES$m$type3.bg,
+        color: (_MICRO_TYPES$m$type4 = MICRO_TYPES[m.type]) === null || _MICRO_TYPES$m$type4 === void 0 ? void 0 : _MICRO_TYPES$m$type4.color
+      }
+    }, (_MICRO_TYPES$m$type5 = MICRO_TYPES[m.type]) === null || _MICRO_TYPES$m$type5 === void 0 ? void 0 : _MICRO_TYPES$m$type5.label), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        color: "#3a4f60"
+      }
+    }, fmtDate(m.date)), m.venue && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        color: "#4d6070"
+      }
+    }, "\xB7 ", m.venue)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        gap: 8
+      }
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: () => onEdit(m),
+      style: {
+        fontSize: 12,
+        color: "#4d6070",
+        background: "none",
+        border: "none",
+        padding: "2px 4px",
+        cursor: "pointer"
+      }
+    }, "\u270E"), /*#__PURE__*/React.createElement("button", {
+      onClick: () => {
+        if (confirm("Delete?")) setData(d => ({
+          ...d,
+          microLog: d.microLog.filter(x => x.id !== m.id)
+        }));
+      },
+      style: {
+        fontSize: 12,
+        color: "#3a4f60",
+        background: "none",
+        border: "none",
+        padding: "2px 4px",
+        cursor: "pointer"
+      }
+    }, "\u2715"))), /*#__PURE__*/React.createElement("p", {
+      style: {
+        fontSize: 13,
+        color: "#c9d8e4",
+        lineHeight: 1.7,
+        whiteSpace: "pre-wrap"
+      }
+    }, m.text), (m.blockers || []).length > 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 8,
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 5
+      }
+    }, m.blockers.map(b => /*#__PURE__*/React.createElement("span", {
+      key: b,
+      style: {
+        fontSize: 11,
+        padding: "2px 8px",
+        borderRadius: 10,
+        background: "#e0704018",
+        border: "1px solid #e0704030",
+        color: "#e07040"
+      }
+    }, b))), m.blueprintId && bpMap[m.blueprintId] && /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 6
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        padding: "2px 8px",
+        borderRadius: 10,
+        background: "rgba(96,165,250,0.12)",
+        border: "1px solid #4a9eff30",
+        color: "#60a5fa"
+      }
+    }, "\uD83D\uDCD6 ", bpMap[m.blueprintId])));
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: 8
+    }
+  }));
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+  </script>
+</body>
+</html>
