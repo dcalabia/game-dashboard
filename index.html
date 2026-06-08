@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -644,6 +644,88 @@ function StepRow({
       lineHeight: 1.65
     }
   }, text)));
+}
+
+// ── blueprint card + group ────────────────────────────────────
+function BPCard({ bp, onView, onEdit, onHide, onArchive, onDelete }) {
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  return /*#__PURE__*/React.createElement("div", {
+    className: "bp-card",
+    style: { margin: "10px 16px 0", position: "relative" },
+    onClick: onView
+  },
+    /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 } },
+      /*#__PURE__*/React.createElement("div", { style: { flex: 1 } },
+        /*#__PURE__*/React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: "#f0f4f8", marginBottom: 4 } }, bp.title),
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 5 } },
+          [bp.venue, bp.time, bp.vibe].filter(Boolean).map(t =>
+            /*#__PURE__*/React.createElement("span", { key: t, style: { fontSize: 11, color: "#4d6070", background: "#172033", border: "1px solid #2a2a2a", borderRadius: 4, padding: "2px 7px" } }, t)
+          )
+        )
+      ),
+      /*#__PURE__*/React.createElement("div", { style: { position: "relative", marginLeft: 8 } },
+        /*#__PURE__*/React.createElement("button", {
+          onClick: e => { e.stopPropagation(); setMenuOpen(o => !o); },
+          style: { fontSize: 16, color: "#4d6070", background: "none", border: "none", padding: "2px 6px", cursor: "pointer", lineHeight: 1 }
+        }, "⋯"),
+        menuOpen && /*#__PURE__*/React.createElement("div", {
+          style: { position: "absolute", right: 0, top: 24, background: "#1a2236", border: "1px solid #2a2a2a", borderRadius: 8, zIndex: 50, minWidth: 130, boxShadow: "0 4px 16px rgba(0,0,0,.5)", overflow: "hidden" }
+        },
+          [
+            { label: "✎  Edit", fn: onEdit, color: "#8fa3b1" },
+            { label: "👁  Hide", fn: onHide, color: "#8fa3b1" },
+            { label: "🗃  Archive", fn: onArchive, color: "#8fa3b1" },
+            { label: "✕  Delete", fn: onDelete, color: "#e05555" },
+          ].map(item =>
+            /*#__PURE__*/React.createElement("button", {
+              key: item.label,
+              onClick: e => { e.stopPropagation(); setMenuOpen(false); item.fn(e); },
+              style: { display: "block", width: "100%", textAlign: "left", padding: "10px 14px", background: "none", border: "none", color: item.color, fontSize: 13, cursor: "pointer", fontFamily: "inherit", borderBottom: "1px solid #2a2a2a" }
+            }, item.label)
+          )
+        )
+      )
+    ),
+    /*#__PURE__*/React.createElement("p", { style: { fontSize: 12, color: "#4d6070", lineHeight: 1.5 } },
+      bp.opener ? bp.opener.slice(0, 80) + "…" : "Tap to view"
+    )
+  );
+}
+function BPGroup({ title, blueprints, onRestore, onDelete }) {
+  const [open, setOpen] = React.useState(false);
+  const color = title === "Hidden" ? "#4d6070" : "#8060a0";
+  return /*#__PURE__*/React.createElement("div", {
+    style: { margin: "10px 16px 0", background: "#111827", border: "1px solid #2a2a2a", borderRadius: 8, overflow: "hidden" }
+  },
+    /*#__PURE__*/React.createElement("div", {
+      onClick: () => setOpen(o => !o),
+      style: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", cursor: "pointer", userSelect: "none" }
+    },
+      /*#__PURE__*/React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } },
+        /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color } }, title === "Hidden" ? "👁 Hidden" : "🗃 Archived"),
+        /*#__PURE__*/React.createElement("span", { style: { fontSize: 11, color: "#3a4f60", background: "#172033", border: "1px solid #2a2a2a", borderRadius: 10, padding: "1px 7px" } }, blueprints.length)
+      ),
+      /*#__PURE__*/React.createElement("span", { style: { fontSize: 10, color: "#3a4f60", transition: "transform .2s", display: "inline-block", transform: open ? "rotate(90deg)" : "rotate(0)" } }, "▶")
+    ),
+    open && blueprints.map(bp =>
+      /*#__PURE__*/React.createElement("div", {
+        key: bp.id,
+        style: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderTop: "1px solid #1a1a1a" }
+      },
+        /*#__PURE__*/React.createElement("span", { style: { fontSize: 13, color: "#8fa3b1", flex: 1 } }, bp.title),
+        /*#__PURE__*/React.createElement("div", { style: { display: "flex", gap: 6 } },
+          /*#__PURE__*/React.createElement("button", {
+            onClick: () => onRestore(bp.id),
+            style: { fontSize: 11, color: "#3b82f6", background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.3)", borderRadius: 5, padding: "3px 10px", cursor: "pointer", fontFamily: "inherit" }
+          }, "↩ Restore"),
+          /*#__PURE__*/React.createElement("button", {
+            onClick: () => onDelete(bp.id),
+            style: { fontSize: 11, color: "#e05555", background: "none", border: "none", padding: "3px 6px", cursor: "pointer" }
+          }, "✕")
+        )
+      )
+    )
+  );
 }
 
 // ── app ──────────────────────────────────────────────────────
@@ -2118,20 +2200,16 @@ function App() {
       fontSize: 12,
       color: "#3a4f60"
     }
-  }, "Situation-based playbooks. Know exactly what to do before you're in it.")), (data.blueprints || []).length === 0 ? /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: 40,
-      textAlign: "center",
-      color: "#3a4f60",
-      fontSize: 13
-    }
-  }, "No blueprints yet.") : (data.blueprints || []).map(bp => /*#__PURE__*/React.createElement("div", {
+  }, "Situation-based playbooks. Know exactly what to do before you're in it.")), (data.blueprints || []).filter(bp => !bp.status || bp.status === "active").length === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: { padding: 40, textAlign: "center", color: "#3a4f60", fontSize: 13 }
+  }, "No blueprints yet.") : (data.blueprints || []).filter(bp => !bp.status || bp.status === "active").map(bp => /*#__PURE__*/React.createElement(BPCard, {
     key: bp.id,
-    className: "bp-card",
-    style: {
-      margin: "10px 16px 0"
-    },
-    onClick: () => setShowBPView(bp)
+    bp: bp,
+    onView: () => setShowBPView(bp),
+    onEdit: e => { e.stopPropagation(); openEditBP(bp); },
+    onHide: e => { e.stopPropagation(); setData(d => ({ ...d, blueprints: d.blueprints.map(x => x.id === bp.id ? { ...x, status: "hidden" } : x) })); },
+    onArchive: e => { e.stopPropagation(); setData(d => ({ ...d, blueprints: d.blueprints.map(x => x.id === bp.id ? { ...x, status: "archived" } : x) })); },
+    onDelete: e => { e.stopPropagation(); if (confirm("Delete?")) setData(d => ({ ...d, blueprints: d.blueprints.filter(x => x.id !== bp.id) })); }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
@@ -2207,11 +2285,22 @@ function App() {
       color: "#4d6070",
       lineHeight: 1.5
     }
-  }, bp.opener ? bp.opener.slice(0, 80) + "…" : "Tap to view"))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      height: 16
-    }
-  })), tab === "mindset" && /*#__PURE__*/React.createElement("div", {
+  })),
+  (data.blueprints || []).filter(bp => bp.status === "hidden").length > 0 && /*#__PURE__*/React.createElement(BPGroup, {
+    key: "hidden-group",
+    title: "Hidden",
+    blueprints: (data.blueprints || []).filter(bp => bp.status === "hidden"),
+    onRestore: id => setData(d => ({ ...d, blueprints: d.blueprints.map(x => x.id === id ? { ...x, status: "active" } : x) })),
+    onDelete: id => { if (confirm("Delete?")) setData(d => ({ ...d, blueprints: d.blueprints.filter(x => x.id !== id) })); }
+  }),
+  (data.blueprints || []).filter(bp => bp.status === "archived").length > 0 && /*#__PURE__*/React.createElement(BPGroup, {
+    key: "archived-group",
+    title: "Archived",
+    blueprints: (data.blueprints || []).filter(bp => bp.status === "archived"),
+    onRestore: id => setData(d => ({ ...d, blueprints: d.blueprints.map(x => x.id === id ? { ...x, status: "active" } : x) })),
+    onDelete: id => { if (confirm("Delete?")) setData(d => ({ ...d, blueprints: d.blueprints.filter(x => x.id !== id) })); }
+  }),
+  /*#__PURE__*/React.createElement("div", { style: { height: 16 } })), tab === "mindset" && /*#__PURE__*/React.createElement("div", {
     style: {
       animation: "fadeUp .2s ease"
     }
