@@ -4,11 +4,31 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Field Log</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-  <style>html,body{margin:0;padding:0;background:#0b1120;}</style>
+  <style>
+:root{
+  --bg:#0b1120;--bg2:#111827;--bg3:#1a2236;--bgh:#1e2a3a;
+  --border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.16);
+  --t1:#f0f4f8;--t2:#8fa3b1;--t3:#4d6070;
+  --accent:#3b82f6;--accent-dim:rgba(59,130,246,.15);
+  --green:#22c55e;--green-dim:rgba(34,197,94,.12);
+  --orange:#e07040;--orange-dim:rgba(224,112,64,.12);
+  --r:8px;--rl:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%;background:var(--bg);color:var(--t1);
+  font-family:system-ui,-apple-system,sans-serif;font-size:14px;
+  -webkit-font-smoothing:antialiased;}
+button{cursor:pointer;font-family:inherit;}
+input,select,textarea{font-family:inherit;}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+</style>
 </head>
 <body>
+  <div id="dash-switcher-area" class="dash-switcher" style="position:fixed;top:16px;left:calc(50% - 350px + 20px);z-index:150;"></div>
   <div id="root"></div>
   <script>
 const { useState, useEffect, useRef } = React;
@@ -442,7 +462,7 @@ function BottomSheet({
     onClick: onClose
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      background: "#111827",
+      background: "var(--bg2)",
       borderRadius: "14px 14px 0 0",
       border: "1px solid #2a2a2a",
       borderBottom: "none",
@@ -456,7 +476,7 @@ function BottomSheet({
     style: {
       width: 36,
       height: 4,
-      background: "rgba(255,255,255,0.08)",
+      background: "var(--border)",
       borderRadius: 2,
       margin: "0 auto 18px"
     }
@@ -559,7 +579,7 @@ function Btn({
 }) {
   const vs = {
     primary: {
-      background: disabled ? "rgba(255,255,255,0.08)" : "#3b82f6",
+      background: disabled ? "var(--border)" : "#3b82f6",
       color: disabled ? "#3a4f60" : "#0b1120",
       border: "none"
     },
@@ -1168,67 +1188,134 @@ function App() {
       paddingBottom: 106
     }
   }, /*#__PURE__*/React.createElement("style", null, `
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         *{box-sizing:border-box;margin:0;padding:0;}
-        ::-webkit-scrollbar{width:4px;}
-        ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.16);border-radius:2px;}
+        body{font-family:'Inter',system-ui,-apple-system,sans-serif;}
+        ::-webkit-scrollbar{width:5px;}
+        ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
         @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
         @keyframes toastIn{0%{opacity:0;transform:translateY(-8px)}15%,80%{opacity:1;transform:translateY(0)}100%{opacity:0}}
         @keyframes levelPop{0%,100%{opacity:0;transform:scale(.94)}15%,85%{opacity:1;transform:scale(1)}}
-        .tab-bar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;
-          background:#0b1120;border-top:1px solid #1e1e1e;z-index:100;padding-bottom:env(safe-area-inset-bottom,0);}
+
+        /* Tab bar */
+        .tab-bar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:700px;
+          background:var(--bg2);border-top:1px solid var(--border);z-index:100;
+          padding-bottom:env(safe-area-inset-bottom,0);}
         .tab-row{display:flex;}
-        .tab-row-2{border-top:1px solid #1a1a1a;}
-        .tab-btn{flex:1;padding:9px 0 10px;border:none;background:transparent;font-size:17px;
-          transition:opacity .15s;opacity:.28;cursor:pointer;}
+        .tab-row-2{border-top:1px solid var(--border);}
+        .tab-btn{flex:1;padding:10px 0 12px;border:none;background:transparent;font-size:18px;
+          transition:opacity .15s;opacity:.3;cursor:pointer;}
         .tab-btn.active{opacity:1;}
-        .tab-label{font-size:9px;color:#666;display:block;margin-top:1px;letter-spacing:.2px;}
-        .tab-btn.active .tab-label{color:#3b82f6;}
-        .fab{position:fixed;bottom:94px;right:16px;width:48px;height:48px;border-radius:24px;
-          background:#3b82f6;border:none;color:#fff;font-size:22px;font-weight:700;
-          box-shadow:0 4px 20px rgba(240,165,0,.35);display:flex;align-items:center;justify-content:center;
+        .tab-label{font-size:9px;color:var(--t3);display:block;margin-top:2px;letter-spacing:.2px;}
+        .tab-btn.active .tab-label{color:var(--accent);}
+
+        /* FAB */
+        .fab{position:fixed;bottom:108px;right:calc(50% - 350px + 16px);width:48px;height:48px;border-radius:24px;
+          background:var(--accent);border:none;color:#fff;font-size:22px;font-weight:700;
+          box-shadow:0 4px 20px rgba(59,130,246,.4);display:flex;align-items:center;justify-content:center;
           transition:transform .15s;z-index:99;cursor:pointer;}
         .fab:active{transform:scale(.91);}
-        .outcome-chip{padding:9px 10px;border-radius:6px;font-size:13px;font-weight:600;
-          border:1px solid;background:transparent;transition:all .15s;font-family:'DM Sans',sans-serif;text-align:left;cursor:pointer;}
-        .type-chip{padding:7px 12px;border-radius:20px;font-size:12px;font-weight:600;
-          border:1px solid #2a2a2a;background:transparent;color:#666;transition:all .15s;
-          font-family:'DM Sans',sans-serif;cursor:pointer;white-space:nowrap;}
-        .blocker-chip{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;
-          border:1px solid #2a2a2a;background:transparent;font-family:'DM Sans',sans-serif;
-          font-size:13px;color:#888;cursor:pointer;transition:all .15s;text-align:left;width:100%;margin-bottom:6px;}
-        .blocker-chip.sel{border-color:#e07040;color:#e07040;background:#e0704018;}
-        .bp-chip{display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:6px;
-          border:1px solid #2a2a2a;background:transparent;font-family:'DM Sans',sans-serif;
-          font-size:13px;color:#888;cursor:pointer;transition:all .15s;text-align:left;width:100%;margin-bottom:6px;}
-        .bp-chip.sel{border-color:#4a9eff;color:#4a9eff;background:#4a9eff18;}
-        .stat-row{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid #1a1a1a;}
-        .stat-row:last-child{border-bottom:none;}
-        .card{background:#111827;border:1px solid rgba(255,255,255,0.061e1e;border-radius:8px;padding:14px;margin-bottom:10px;}
-        .day-cell{aspect-ratio:1;border-radius:5px;display:flex;flex-direction:column;align-items:center;
-          justify-content:center;font-size:12px;font-weight:600;border:1px solid transparent;}
-        .day-cell.has-data{background:#1a1a1a;border-color:#2a2a2a;}
-        .day-cell.is-today{border-color:rgba(59,130,246,0.4)!important;}
-        .link-card{background:#111827;border:1px solid rgba(255,255,255,0.061e1e;border-radius:8px;overflow:hidden;margin-bottom:10px;}
-        .mindset-card{background:#111827;border:1px solid rgba(255,255,255,0.061e1e;border-radius:8px;
-          padding:14px 14px 14px 16px;margin-bottom:8px;border-left:3px solid rgba(59,130,246,0.4);}
-        .bp-card{background:#111827;border:1px solid rgba(255,255,255,0.061e1e;border-radius:8px;
-          padding:16px;margin-bottom:10px;border-left:3px solid #4a9eff60;cursor:pointer;}
-        .parse-fab{position:fixed;bottom:94px;left:16px;width:48px;height:48px;border-radius:24px;
-          background:#1e1e1e;border:1px solid #333;color:#d4d4d4;font-size:20px;
-          box-shadow:0 4px 16px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;
-          transition:transform .15s,box-shadow .15s;z-index:99;cursor:pointer;}
+        .parse-fab{position:fixed;bottom:108px;left:calc(50% - 350px + 16px);width:48px;height:48px;border-radius:24px;
+          background:var(--bg2);border:1px solid var(--border2);color:var(--t2);font-size:20px;
+          box-shadow:0 4px 16px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;
+          transition:transform .15s;z-index:99;cursor:pointer;}
         .parse-fab:active{transform:scale(.91);}
-        .parse-preview-card{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;
-          padding:12px;margin-bottom:10px;}
-        .cl-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #1a1a1a;}
+
+        /* Section */
+        .sec-block{border:1px solid var(--border);border-radius:var(--rl);background:var(--bg2);
+          margin-bottom:12px;overflow:hidden;}
+        .sec-hdr{display:flex;align-items:center;justify-content:space-between;
+          padding:13px 16px;cursor:pointer;user-select:none;}
+        .sec-hdr:hover{background:var(--bgh);}
+        .sec-title{font-size:13px;font-weight:600;color:var(--t1);}
+        .sec-count{font-size:11px;color:var(--t3);background:var(--bg3);
+          border:1px solid var(--border);border-radius:10px;padding:1px 7px;margin-left:6px;}
+        .sec-action{font-size:11px;font-weight:500;color:var(--t2);
+          border:1px solid var(--border2);border-radius:20px;padding:3px 10px;
+          background:transparent;transition:all .15s;}
+        .sec-action:hover{border-color:var(--accent);color:var(--accent);}
+        .sec-chevron{font-size:10px;color:var(--t3);display:inline-block;transition:transform .2s;}
+        .sec-chevron.open{transform:rotate(90deg);}
+        .sec-body{padding:0 16px 16px;}
+
+        /* Stat rows */
+        .stat-row{display:flex;justify-content:space-between;align-items:baseline;
+          padding:8px 0;border-bottom:1px solid var(--border);}
+        .stat-row:last-child{border-bottom:none;}
+        .stat-lbl{font-size:13px;color:var(--t2);}
+        .stat-val{font-size:14px;font-weight:600;color:var(--t1);}
+
+        /* Progress bar */
+        .prog-bar-bg{height:5px;border-radius:3px;background:var(--border2);overflow:hidden;margin-top:4px;}
+        .prog-bar-fill{height:100%;border-radius:3px;transition:width .4s ease;}
+
+        /* Checklist items */
+        .cl-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);}
         .cl-item:last-child{border-bottom:none;}
-        .cl-check{width:22px;height:22px;border-radius:6px;border:1.5px solid #333;
+        .cl-check{width:22px;height:22px;border-radius:6px;border:1.5px solid var(--border2);
           display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;cursor:pointer;}
-        .cl-check.done{background:#3b82f6;border-color:#3b82f6;}
-        .bucket-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #1a1a1a;}
+        .cl-check.done{background:var(--accent);border-color:var(--accent);}
+
+        /* Cards (field reports, micro log etc) */
+        .entry-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);
+          padding:14px;margin-bottom:8px;}
+        .entry-card:last-child{margin-bottom:0;}
+
+        /* Mindset card */
+        .mindset-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);
+          padding:14px 14px 14px 16px;margin-bottom:8px;border-left:3px solid rgba(59,130,246,0.5);}
+
+        /* Blueprint card */
+        .bp-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);
+          padding:14px;margin-bottom:8px;border-left:3px solid rgba(59,130,246,0.5);cursor:pointer;
+          transition:border-color .15s;}
+        .bp-card:hover{border-color:var(--border2);}
+
+        /* Bucket list */
+        .bucket-item{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);}
         .bucket-item:last-child{border-bottom:none;}
-        input:focus,select:focus,textarea:focus{border-color:#444!important;outline:none!important;}
+
+        /* Link/video cards */
+        .link-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);
+          overflow:hidden;margin-bottom:8px;}
+
+        /* Outcome chips */
+        .outcome-chip{padding:9px 10px;border-radius:var(--r);font-size:13px;font-weight:600;
+          border:1.5px solid;background:transparent;transition:all .15s;
+          font-family:inherit;text-align:left;cursor:pointer;}
+        .type-chip{padding:7px 14px;border-radius:20px;font-size:12px;font-weight:600;
+          border:1px solid var(--border2);background:transparent;color:var(--t3);
+          transition:all .15s;font-family:inherit;cursor:pointer;white-space:nowrap;}
+        .blocker-chip{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:var(--r);
+          border:1px solid var(--border);background:var(--bg3);font-family:inherit;
+          font-size:13px;color:var(--t2);cursor:pointer;transition:all .15s;
+          text-align:left;width:100%;margin-bottom:6px;}
+        .blocker-chip.sel{border-color:var(--orange);color:var(--orange);background:var(--orange-dim);}
+        .bp-chip{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:var(--r);
+          border:1px solid var(--border);background:var(--bg3);font-family:inherit;
+          font-size:13px;color:var(--t2);cursor:pointer;transition:all .15s;
+          text-align:left;width:100%;margin-bottom:6px;}
+        .bp-chip.sel{border-color:var(--accent);color:var(--accent);background:var(--accent-dim);}
+
+        /* Day cell calendar */
+        .day-cell{aspect-ratio:1;border-radius:6px;display:flex;flex-direction:column;
+          align-items:center;justify-content:center;font-size:12px;font-weight:600;
+          border:1px solid transparent;}
+        .day-cell.has-data{background:var(--bg3);border-color:var(--border);}
+        .day-cell.is-today{border-color:rgba(59,130,246,0.5)!important;}
+
+        /* Link cards */
+        .link-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:8px;}
+
+        /* Parse preview */
+        .parse-preview-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:12px;margin-bottom:10px;}
+
+        /* Inputs */
+        input,select,textarea{background:var(--bg3);border:1px solid var(--border);color:var(--t1);
+          border-radius:var(--r);padding:9px 12px;font-size:14px;width:100%;outline:none;transition:border-color .15s;}
+        input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+        select option{background:var(--bg3);}
+        textarea{resize:vertical;line-height:1.6;}
       `), /*#__PURE__*/React.createElement("div", {
     style: {
       padding: "16px 16px 12px",
@@ -1247,21 +1334,35 @@ function App() {
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 10,
-      color: "#3a4f60",
-      letterSpacing: .8,
-      marginBottom: 1
-    }
-  }, "THE GAME"), /*#__PURE__*/React.createElement("div", {
+      fontWeight: 600,
+      color: "var(--accent)",
+      letterSpacing: "0.1em",
+      textTransform: "uppercase",
+      marginBottom: 2,
+      cursor: "pointer"
+    },
+    onClick: function(){ window.toggleDashMenu && window.toggleDashMenu(); }
+  }, "DALE'S DASHBOARD ▾"), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 16,
       fontWeight: 700,
       color: "#f0f4f8"
     }
-  }, "Field Log")), /*#__PURE__*/React.createElement("div", {
+  }, "Game Log")), /*#__PURE__*/React.createElement("div", {
     style: {
-      textAlign: "right"
+      textAlign: "right",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-end",
+      gap: 4
     }
-  }, /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "sync-pill",
+    onClick: function(){ window.openSyncModal && window.openSyncModal(); }
+  },
+    React.createElement("span", { id: "sync-dot", className: "sync-dot" }),
+    React.createElement("span", { id: "sync-lbl" }, "No sync")
+  ), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 12,
       fontWeight: 700,
@@ -1360,7 +1461,7 @@ function App() {
       onClick: () => removeChecklistItem(item.id),
       style: {
         fontSize: 12,
-        color: "rgba(255,255,255,0.1)",
+        color: "var(--border2)",
         background: "none",
         border: "none",
         padding: "2px 4px",
@@ -1521,7 +1622,7 @@ function App() {
       width: 20,
       height: 20,
       borderRadius: 10,
-      border: `1.5px solid ${b.done ? "#22c55e" : "rgba(255,255,255,0.1)"}`,
+      border: `1.5px solid ${b.done ? "#22c55e" : "var(--border2)"}`,
       background: b.done ? "#22c55e" : "transparent",
       display: "flex",
       alignItems: "center",
@@ -1551,7 +1652,7 @@ function App() {
     })),
     style: {
       fontSize: 12,
-      color: "rgba(255,255,255,0.1)",
+      color: "var(--border2)",
       background: "none",
       border: "none",
       padding: "2px 4px",
@@ -1666,7 +1767,7 @@ function App() {
         padding: "12px 8px",
         borderRadius: 7,
         textAlign: "center",
-        background: e ? "#131e30" : "#111827",
+        background: e ? "var(--bg3)" : "var(--bg2)",
         border: `1px solid ${e ? "rgba(59,130,246,0.2)" : "#172033"}`,
         opacity: e ? 1 : .3
       }
@@ -1839,7 +1940,7 @@ function App() {
       background: "none",
       border: "1px solid #2a2a2a",
       borderRadius: 6,
-      color: monthOffset === 0 ? "rgba(255,255,255,0.1)" : "#4d6070",
+      color: monthOffset === 0 ? "var(--border2)" : "#4d6070",
       padding: "6px 12px",
       fontSize: 14,
       cursor: "pointer"
@@ -1933,7 +2034,7 @@ function App() {
   })), /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: 20,
-      background: "#111827",
+      background: "var(--bg2)",
       border: "1px solid #1e1e1e",
       borderRadius: 8,
       padding: 16
@@ -1972,7 +2073,7 @@ function App() {
     return /*#__PURE__*/React.createElement("div", {
       style: {
         marginTop: 12,
-        background: "#111827",
+        background: "var(--bg2)",
         border: "1px solid #1e1e1e",
         borderRadius: 8,
         padding: 16
@@ -2640,7 +2741,7 @@ function App() {
       outcome: k
     })),
     style: {
-      borderColor: logEntry.outcome === k ? v.color : "rgba(255,255,255,0.08)",
+      borderColor: logEntry.outcome === k ? v.color : "var(--border)",
       color: logEntry.outcome === k ? v.color : "#4d6070",
       background: logEntry.outcome === k ? `${v.color}14` : "transparent"
     }
@@ -2781,7 +2882,7 @@ function App() {
       type: k
     })),
     style: {
-      borderColor: microForm.type === k ? v.color : "rgba(255,255,255,0.08)",
+      borderColor: microForm.type === k ? v.color : "var(--border)",
       color: microForm.type === k ? v.color : "#4d6070",
       background: microForm.type === k ? v.bg : "transparent"
     }
@@ -3094,7 +3195,7 @@ function App() {
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      background: "#111827",
+      background: "var(--bg2)",
       border: "1px solid #2e2e2e",
       borderRadius: 10,
       padding: "28px 36px",
@@ -3267,7 +3368,7 @@ ${transcript}`;
     style: {
       width: 36,
       height: 4,
-      background: "rgba(255,255,255,0.08)",
+      background: "var(--border)",
       borderRadius: 2,
       margin: "0 auto 18px"
     }
@@ -3356,7 +3457,7 @@ ${transcript}`;
       border: "none",
       fontFamily: "'DM Sans',sans-serif",
       cursor: "pointer",
-      background: loading || !transcript.trim() ? "rgba(255,255,255,0.08)" : "#3b82f6",
+      background: loading || !transcript.trim() ? "var(--border)" : "#3b82f6",
       color: loading || !transcript.trim() ? "#3a4f60" : "#0b1120"
     }
   }, loading ? "Parsing…" : "✨ Parse & Preview"))), parsed && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
@@ -3499,7 +3600,7 @@ ${transcript}`;
       key: i,
       className: "parse-preview-card",
       style: {
-        borderLeft: `3px solid ${m._keep ? ((_MICRO_TYPES$m$type = MICRO_TYPES[m.type]) === null || _MICRO_TYPES$m$type === void 0 ? void 0 : _MICRO_TYPES$m$type.color) || "#4d6070" : "rgba(255,255,255,0.1)"}`,
+        borderLeft: `3px solid ${m._keep ? ((_MICRO_TYPES$m$type = MICRO_TYPES[m.type]) === null || _MICRO_TYPES$m$type === void 0 ? void 0 : _MICRO_TYPES$m$type.color) || "#4d6070" : "var(--border2)"}`,
         opacity: m._keep ? 1 : .4,
         marginBottom: 8
       }
@@ -3531,7 +3632,7 @@ ${transcript}`;
           fontWeight: 600,
           cursor: "pointer",
           fontFamily: "'DM Sans',sans-serif",
-          border: `1px solid ${m.type === t ? (_MICRO_TYPES$t = MICRO_TYPES[t]) === null || _MICRO_TYPES$t === void 0 ? void 0 : _MICRO_TYPES$t.color : "rgba(255,255,255,0.08)"}`,
+          border: `1px solid ${m.type === t ? (_MICRO_TYPES$t = MICRO_TYPES[t]) === null || _MICRO_TYPES$t === void 0 ? void 0 : _MICRO_TYPES$t.color : "var(--border)"}`,
           background: m.type === t ? (_MICRO_TYPES$t2 = MICRO_TYPES[t]) === null || _MICRO_TYPES$t2 === void 0 ? void 0 : _MICRO_TYPES$t2.bg : "transparent",
           color: m.type === t ? (_MICRO_TYPES$t3 = MICRO_TYPES[t]) === null || _MICRO_TYPES$t3 === void 0 ? void 0 : _MICRO_TYPES$t3.color : "#3a4f60"
         }
@@ -3590,7 +3691,7 @@ ${transcript}`;
       style: {
         opacity: a._keep ? 1 : .4,
         marginBottom: 8,
-        borderLeft: `3px solid ${a._keep ? ((_OUTCOME_META$a$outco = OUTCOME_META[a.outcome]) === null || _OUTCOME_META$a$outco === void 0 ? void 0 : _OUTCOME_META$a$outco.color) || "#4d6070" : "rgba(255,255,255,0.1)"}`
+        borderLeft: `3px solid ${a._keep ? ((_OUTCOME_META$a$outco = OUTCOME_META[a.outcome]) === null || _OUTCOME_META$a$outco === void 0 ? void 0 : _OUTCOME_META$a$outco.color) || "#4d6070" : "var(--border2)"}`
       }
     }, /*#__PURE__*/React.createElement("div", {
       style: {
@@ -3619,7 +3720,7 @@ ${transcript}`;
           fontWeight: 600,
           cursor: "pointer",
           fontFamily: "'DM Sans',sans-serif",
-          border: `1px solid ${a.outcome === o ? (_OUTCOME_META$o = OUTCOME_META[o]) === null || _OUTCOME_META$o === void 0 ? void 0 : _OUTCOME_META$o.color : "rgba(255,255,255,0.08)"}`,
+          border: `1px solid ${a.outcome === o ? (_OUTCOME_META$o = OUTCOME_META[o]) === null || _OUTCOME_META$o === void 0 ? void 0 : _OUTCOME_META$o.color : "var(--border)"}`,
           background: a.outcome === o ? `${(_OUTCOME_META$o2 = OUTCOME_META[o]) === null || _OUTCOME_META$o2 === void 0 ? void 0 : _OUTCOME_META$o2.color}14` : "transparent",
           color: a.outcome === o ? (_OUTCOME_META$o3 = OUTCOME_META[o]) === null || _OUTCOME_META$o3 === void 0 ? void 0 : _OUTCOME_META$o3.color : "#3a4f60"
         }
@@ -3690,7 +3791,7 @@ ${transcript}`;
       border: "none",
       fontFamily: "'DM Sans',sans-serif",
       cursor: "pointer",
-      background: hasSomething ? "#3b82f6" : "rgba(255,255,255,0.08)",
+      background: hasSomething ? "#3b82f6" : "var(--border)",
       color: hasSomething ? "#0b1120" : "#3a4f60"
     }
   }, "\u2713 Save to dashboard")))));
@@ -3754,7 +3855,7 @@ function MicroList({
       key: m.id,
       style: {
         margin: "0 16px 10px",
-        background: "#111827",
+        background: "var(--bg2)",
         border: "1px solid #1e1e1e",
         borderRadius: 8,
         padding: 14,
@@ -3868,6 +3969,163 @@ function MicroList({
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+
+// ── Dashboard Switcher ────────────────────────────────────────
+const DASHBOARDS = [
+  { label: "Game Log",       icon: "🎯", url: "#",                    active: true  },
+  { label: "Health Dashboard", icon: "💪", url: "master-dash.html",   active: false },
+  { label: "Habit Tracker",  icon: "✅", url: "habit-tracker.html",   active: false },
+];
+
+let dashMenuOpen = false;
+window.toggleDashMenu = function() {
+  dashMenuOpen = !dashMenuOpen;
+  const menu = document.getElementById('dash-menu');
+  if (menu) menu.style.display = dashMenuOpen ? 'block' : 'none';
+};
+document.addEventListener('click', function(e) {
+  if (dashMenuOpen && !e.target.closest('#dash-switcher-area')) {
+    dashMenuOpen = false;
+    const menu = document.getElementById('dash-menu');
+    if (menu) menu.style.display = 'none';
+  }
+});
+
+// Render dashboard switcher menu into DOM
+document.addEventListener('DOMContentLoaded', function() {
+  const area = document.getElementById('dash-switcher-area');
+  if (!area) return;
+  const menu = document.createElement('div');
+  menu.id = 'dash-menu';
+  menu.className = 'dash-menu';
+  menu.style.display = 'none';
+  DASHBOARDS.forEach(function(d) {
+    const item = document.createElement('div');
+    item.className = 'dash-menu-item' + (d.active ? ' active' : '');
+    item.innerHTML = '<span style="font-size:16px">' + d.icon + '</span><span>' + d.label + '</span>';
+    if (!d.active) item.onclick = function() { window.location.href = d.url; };
+    menu.appendChild(item);
+  });
+  area.appendChild(menu);
+  initSupabase();
+  syncFromCloud();
+});
+
+// ── Supabase sync ─────────────────────────────────────────────
+let sbClient = null;
+const STORAGE_KEY = 'gd_v7';
+
+function loadCloudConfig() { try { const v = localStorage.getItem('cloud-config'); return v ? JSON.parse(v) : null; } catch(e) { return null; } }
+function saveCloudConfigStore(cfg) { try { localStorage.setItem('cloud-config', JSON.stringify(cfg)); } catch(e) {} }
+
+function initSupabase() {
+  const cfg = loadCloudConfig();
+  if (!cfg || !cfg.url || !cfg.key) return false;
+  try { sbClient = window.supabase.createClient(cfg.url, cfg.key); return true; } catch(e) { return false; }
+}
+
+async function syncFromCloud() {
+  const ready = initSupabase();
+  if (!ready) { setSyncStatus('disconnected'); return; }
+  setSyncStatus('syncing');
+  try {
+    const { data, error } = await sbClient.from('dashboard_data').select('key,value').eq('key', STORAGE_KEY);
+    if (error) throw error;
+    if (data && data.length && data[0].value) {
+      const remote = JSON.parse(data[0].value);
+      // Merge: remote wins for keys not in local, local wins for today's data
+      localStorage.setItem(STORAGE_KEY, data[0].value);
+      // Force React to re-read — reload the page once
+      if (!sessionStorage.getItem('synced')) {
+        sessionStorage.setItem('synced', '1');
+        location.reload();
+      }
+    }
+    setSyncStatus('synced');
+  } catch(e) { setSyncStatus('error'); }
+}
+
+async function pushToCloud(valueStr) {
+  if (!sbClient) return;
+  try {
+    await sbClient.from('dashboard_data').upsert({ key: STORAGE_KEY, value: valueStr, updated_at: new Date().toISOString() });
+    setSyncStatus('synced');
+  } catch(e) { setSyncStatus('error'); }
+}
+
+// Hook into localStorage saves — wrap the existing save function
+const _origSave = window.__gdSave;
+const _origSetItem = localStorage.setItem.bind(localStorage);
+localStorage.setItem = function(key, value) {
+  _origSetItem(key, value);
+  if (key === STORAGE_KEY && sbClient) pushToCloud(value);
+};
+
+function setSyncStatus(status) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-lbl');
+  if (!dot || !lbl) return;
+  const states = {
+    disconnected: { c: 'var(--t3)',  l: 'No sync' },
+    syncing:      { c: '#f59e0b',    l: 'Syncing…' },
+    synced:       { c: '#22c55e',    l: 'Synced ✓' },
+    error:        { c: '#f87171',    l: 'Sync error' },
+  };
+  const s = states[status] || states.disconnected;
+  dot.style.background = s.c;
+  lbl.textContent = s.l;
+}
+
+window.openSyncModal = function() {
+  const modal = document.getElementById('sync-modal');
+  if (!modal) return;
+  const cfg = loadCloudConfig();
+  if (cfg) {
+    document.getElementById('sync-url-inp').value = cfg.url || '';
+    document.getElementById('sync-key-inp').value = cfg.key || '';
+    document.getElementById('sync-disconnect-btn').style.display = 'inline-flex';
+  } else {
+    document.getElementById('sync-disconnect-btn').style.display = 'none';
+  }
+  document.getElementById('sync-modal-msg').textContent = '';
+  modal.classList.add('open');
+};
+
+window.closeSyncModal = function() {
+  const modal = document.getElementById('sync-modal');
+  if (modal) modal.classList.remove('open');
+};
+
+window.saveCloudConfig = async function() {
+  const url = document.getElementById('sync-url-inp').value.trim();
+  const key = document.getElementById('sync-key-inp').value.trim();
+  const msg = document.getElementById('sync-modal-msg');
+  if (!url || !key) { msg.style.color = '#f87171'; msg.textContent = 'Both fields are required.'; return; }
+  msg.style.color = 'var(--t3)'; msg.textContent = 'Testing connection…';
+  try {
+    const client = window.supabase.createClient(url, key);
+    const { error } = await client.from('dashboard_data').select('key').limit(1);
+    if (error) throw error;
+    saveCloudConfigStore({ url, key });
+    sbClient = client;
+    msg.style.color = '#4ade80'; msg.textContent = 'Connected! Pushing data to cloud…';
+    const data = localStorage.getItem(STORAGE_KEY);
+    if (data) await pushToCloud(data);
+    msg.textContent = 'All done — synced ✓';
+    document.getElementById('sync-disconnect-btn').style.display = 'inline-flex';
+    setTimeout(() => window.closeSyncModal(), 1200);
+  } catch(e) {
+    msg.style.color = '#f87171'; msg.textContent = 'Connection failed — check your URL and key.';
+  }
+};
+
+window.disconnectSync = function() {
+  localStorage.removeItem('cloud-config');
+  sbClient = null;
+  setSyncStatus('disconnected');
+  window.closeSyncModal();
+};
+
   </script>
 </body>
 </html>
