@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -1398,87 +1398,34 @@ function App() {
         input:focus,select:focus,textarea:focus{border-color:var(--accent);}
         select option{background:var(--bg3);}
         textarea{resize:vertical;line-height:1.6;}
-      `), /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: "16px 16px 12px",
-      borderBottom: "1px solid #1e1e1e",
-      position: "sticky",
-      top: 0,
-      background: "#0b1120",
-      zIndex: 50
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between"
-    }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      fontWeight: 600,
-      color: "var(--accent)",
-      letterSpacing: "0.1em",
-      textTransform: "uppercase",
-      marginBottom: 2,
-      cursor: "pointer"
-    },
-    onClick: function(){ window.toggleDashMenu && window.toggleDashMenu(); }
-  }, "DALE'S DASHBOARD ▾"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 16,
-      fontWeight: 700,
-      color: "#f0f4f8"
-    }
-  }, "Game Log")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: "right",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "flex-end",
-      gap: 4
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    className: "sync-pill",
-    onClick: function(){ window.openSyncModal && window.openSyncModal(); }
-  },
-    React.createElement("span", { id: "sync-dot", className: "sync-dot" }),
-    React.createElement("span", { id: "sync-lbl" }, "No sync")
-  ), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12,
-      fontWeight: 700,
-      color: "#3b82f6"
-    }
-  }, "LV.", data.level, " ", getLevelTitle(data.level)), data.streak > 0 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 11,
-      color: "#4d6070",
-      marginTop: 1
-    }
-  }, "\uD83D\uDD25 ", data.streak, "d streak"))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 10
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      justifyContent: "space-between",
-      marginBottom: 4
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      color: "#3a4f60"
-    }
-  }, "XP"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      color: "#3a4f60"
-    }
-  }, xpInLevel, " / ", XP_PER_LEVEL)), /*#__PURE__*/React.createElement(ProgressBar, {
-    pct: xpInLevel / XP_PER_LEVEL * 100
-  }))), tab === "pregame" && /*#__PURE__*/React.createElement("div", {
+      `),
+  React.createElement("div", { style: { position: "sticky", top: 0, background: "var(--bg)", zIndex: 50, borderBottom: "1px solid var(--border)" } },
+    React.createElement("div", { style: { padding: "14px 20px 10px", display: "flex", alignItems: "flex-start", justifyContent: "space-between" } },
+      React.createElement("div", null,
+        React.createElement("div", { style: { fontSize: 10, fontWeight: 700, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4, cursor: "pointer" }, onClick: function(){ window.toggleDashMenu && window.toggleDashMenu(); } }, "DALE'S DASHBOARD ▾"),
+        React.createElement("div", { style: { fontSize: 22, fontWeight: 700, color: "var(--t1)", lineHeight: 1.1, marginBottom: 3 } }, new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })),
+        React.createElement("div", { style: { fontSize: 13, color: "var(--t2)" } }, (function(){ const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; })(), ", Dale")
+      ),
+      React.createElement("div", { style: { textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 } },
+        React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: "var(--accent)" } }, "LV.", data.level, " ", getLevelTitle(data.level)),
+        data.streak > 0 && React.createElement("div", { style: { fontSize: 12, color: "var(--t3)" } }, "🔥 ", data.streak, "d streak"),
+        React.createElement("div", { style: { fontSize: 11, color: "var(--t3)", marginTop: 2 } }, "Click any stat to log")
+      )
+    ),
+    React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 20px 10px", borderTop: "1px solid var(--border)", gap: 12 } },
+      React.createElement("div", { style: { flex: 1 } },
+        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 4 } },
+          React.createElement("span", { style: { fontSize: 10, color: "var(--t3)" } }, "XP"),
+          React.createElement("span", { style: { fontSize: 10, color: "var(--t3)" } }, xpInLevel, " / ", XP_PER_LEVEL)
+        ),
+        React.createElement(ProgressBar, { pct: xpInLevel / XP_PER_LEVEL * 100 })
+      ),
+      React.createElement("button", { className: "sync-pill", style: { flexShrink: 0 }, onClick: function(){ window.openSyncModal && window.openSyncModal(); } },
+        React.createElement("span", { id: "sync-dot", className: "sync-dot" }),
+        React.createElement("span", { id: "sync-lbl" }, "No sync")
+      )
+    )
+  )), tab === "pregame" && /*#__PURE__*/React.createElement("div", {
     style: {
       animation: "fadeUp .2s ease"
     }
