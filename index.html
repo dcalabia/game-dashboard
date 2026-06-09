@@ -649,7 +649,7 @@ function StepRow({
 // ── app ──────────────────────────────────────────────────────
 function App() {
   const [data, setData] = useState(load);
-  const [tab, setTab] = useState("pregame");
+  const [tab, setTab] = useState("overview");
   const [xpToast, setXpToast] = useState(null);
   const [levelUpMsg, setLvlUp] = useState(null);
   const [monthOffset, setMoOff] = useState(0);
@@ -1124,13 +1124,13 @@ function App() {
   const dateRate = data.numbersGot > 0 ? Math.round(data.datesSet / data.numbersGot * 100) : 0;
   const xpInLevel = data.xp % XP_PER_LEVEL;
   const ROW1 = [{
-    id: "pregame",
-    icon: "🔥",
-    label: "Pre-Game"
-  }, {
     id: "overview",
     icon: "📊",
     label: "Stats"
+  }, {
+    id: "pregame",
+    icon: "🔥",
+    label: "Pre-Game"
   }, {
     id: "field",
     icon: "🌆",
