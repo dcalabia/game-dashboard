@@ -570,7 +570,7 @@ function Inp({
       color: "#f0f4f8",
       borderRadius: 6,
       padding: "9px 12px",
-      fontFamily: "'DM Sans',sans-serif",
+      fontFamily: "system-ui,-apple-system,sans-serif",
       fontSize: 14,
       width: "100%",
       outline: "none",
@@ -589,7 +589,7 @@ function Sel({
       color: "#f0f4f8",
       borderRadius: 6,
       padding: "9px 12px",
-      fontFamily: "'DM Sans',sans-serif",
+      fontFamily: "system-ui,-apple-system,sans-serif",
       fontSize: 14,
       width: "100%",
       outline: "none"
@@ -607,7 +607,7 @@ function TA({
       color: "#f0f4f8",
       borderRadius: 6,
       padding: "9px 12px",
-      fontFamily: "'DM Sans',sans-serif",
+      fontFamily: "system-ui,-apple-system,sans-serif",
       fontSize: 14,
       width: "100%",
       outline: "none",
@@ -644,7 +644,7 @@ function Btn({
       fontSize: 14,
       fontWeight: 700,
       padding: "11px 16px",
-      fontFamily: "'DM Sans',sans-serif",
+      fontFamily: "system-ui,-apple-system,sans-serif",
       cursor: disabled ? "default" : "pointer",
       transition: "all .15s",
       ...vs[variant],
@@ -1230,14 +1230,13 @@ function App() {
       minHeight: "100vh",
       background: "#0b1120",
       color: "#f0f4f8",
-      fontFamily: "'DM Sans','Helvetica Neue',sans-serif",
+      fontFamily: "system-ui,-apple-system,sans-serif",
       fontSize: 14,
       paddingBottom: 106
     }
   }, /*#__PURE__*/React.createElement("style", null, `
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         *{box-sizing:border-box;margin:0;padding:0;}
-        body{font-family:'Inter',system-ui,-apple-system,sans-serif;}
+        body{font-family:system-ui,-apple-system,sans-serif;}
         ::-webkit-scrollbar{width:5px;}
         ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
         @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
@@ -1378,7 +1377,8 @@ function App() {
     /*#__PURE__*/React.createElement("div", null,
       /*#__PURE__*/React.createElement("div", {
         style: { fontSize: 10, fontWeight: 600, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4, cursor: "pointer" },
-        onClick: function(){ window.toggleDashMenu && window.toggleDashMenu(); }
+        id: "dash-menu-trigger",
+        onClick: function(e){ e.stopPropagation(); window.toggleDashMenu && window.toggleDashMenu(); }
       }, "DALE'S DASHBOARD ▾"),
       /*#__PURE__*/React.createElement("div", { style: { fontSize: 24, fontWeight: 700, color: "#f0f4f8", letterSpacing: "-.3px" } }, "Game Log"),
       /*#__PURE__*/React.createElement("div", { style: { fontSize: 13, color: "#4d6070", marginTop: 3 } },
@@ -1490,7 +1490,7 @@ function App() {
       borderRadius: 6,
       padding: "6px 12px",
       cursor: "pointer",
-      fontFamily: "'DM Sans',sans-serif",
+      fontFamily: "system-ui,-apple-system,sans-serif",
       width: "100%"
     }
   }, "View history \u2192")), /*#__PURE__*/React.createElement(Section, {
@@ -3439,7 +3439,7 @@ ${transcript}`;
       color: "#f0f4f8",
       borderRadius: 8,
       padding: "12px",
-      fontFamily: "'DM Sans',sans-serif",
+      fontFamily: "system-ui,-apple-system,sans-serif",
       fontSize: 13,
       width: "100%",
       outline: "none",
@@ -3471,7 +3471,7 @@ ${transcript}`;
       border: "1px solid #2e2e2e",
       background: "transparent",
       color: "#4d6070",
-      fontFamily: "'DM Sans',sans-serif",
+      fontFamily: "system-ui,-apple-system,sans-serif",
       cursor: "pointer"
     }
   }, "Cancel"), /*#__PURE__*/React.createElement("button", {
@@ -3484,7 +3484,7 @@ ${transcript}`;
       fontSize: 14,
       fontWeight: 700,
       border: "none",
-      fontFamily: "'DM Sans',sans-serif",
+      fontFamily: "system-ui,-apple-system,sans-serif",
       cursor: "pointer",
       background: loading || !transcript.trim() ? "var(--border)" : "#3b82f6",
       color: loading || !transcript.trim() ? "#3a4f60" : "#0b1120"
@@ -3557,7 +3557,7 @@ ${transcript}`;
       padding: "6px 8px",
       fontSize: 12,
       width: "100%",
-      fontFamily: "'DM Sans',sans-serif",
+      fontFamily: "system-ui,-apple-system,sans-serif",
       outline: "none"
     }
   })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
@@ -3581,7 +3581,7 @@ ${transcript}`;
       padding: "6px 8px",
       fontSize: 12,
       width: "100%",
-      fontFamily: "'DM Sans',sans-serif",
+      fontFamily: "system-ui,-apple-system,sans-serif",
       outline: "none"
     }
   }))), /*#__PURE__*/React.createElement("div", {
@@ -3605,7 +3605,7 @@ ${transcript}`;
       padding: "7px 8px",
       fontSize: 12,
       width: "100%",
-      fontFamily: "'DM Sans',sans-serif",
+      fontFamily: "system-ui,-apple-system,sans-serif",
       outline: "none",
       resize: "vertical",
       lineHeight: 1.6
@@ -3660,7 +3660,7 @@ ${transcript}`;
           fontSize: 11,
           fontWeight: 600,
           cursor: "pointer",
-          fontFamily: "'DM Sans',sans-serif",
+          fontFamily: "system-ui,-apple-system,sans-serif",
           border: `1px solid ${m.type === t ? (_MICRO_TYPES$t = MICRO_TYPES[t]) === null || _MICRO_TYPES$t === void 0 ? void 0 : _MICRO_TYPES$t.color : "var(--border)"}`,
           background: m.type === t ? (_MICRO_TYPES$t2 = MICRO_TYPES[t]) === null || _MICRO_TYPES$t2 === void 0 ? void 0 : _MICRO_TYPES$t2.bg : "transparent",
           color: m.type === t ? (_MICRO_TYPES$t3 = MICRO_TYPES[t]) === null || _MICRO_TYPES$t3 === void 0 ? void 0 : _MICRO_TYPES$t3.color : "#3a4f60"
@@ -3693,7 +3693,7 @@ ${transcript}`;
         padding: "7px 8px",
         fontSize: 12,
         width: "100%",
-        fontFamily: "'DM Sans',sans-serif",
+        fontFamily: "system-ui,-apple-system,sans-serif",
         outline: "none",
         resize: "vertical",
         lineHeight: 1.6
@@ -3748,7 +3748,7 @@ ${transcript}`;
           fontSize: 10,
           fontWeight: 600,
           cursor: "pointer",
-          fontFamily: "'DM Sans',sans-serif",
+          fontFamily: "system-ui,-apple-system,sans-serif",
           border: `1px solid ${a.outcome === o ? (_OUTCOME_META$o = OUTCOME_META[o]) === null || _OUTCOME_META$o === void 0 ? void 0 : _OUTCOME_META$o.color : "var(--border)"}`,
           background: a.outcome === o ? `${(_OUTCOME_META$o2 = OUTCOME_META[o]) === null || _OUTCOME_META$o2 === void 0 ? void 0 : _OUTCOME_META$o2.color}14` : "transparent",
           color: a.outcome === o ? (_OUTCOME_META$o3 = OUTCOME_META[o]) === null || _OUTCOME_META$o3 === void 0 ? void 0 : _OUTCOME_META$o3.color : "#3a4f60"
@@ -3805,7 +3805,7 @@ ${transcript}`;
       border: "1px solid #2e2e2e",
       background: "transparent",
       color: "#4d6070",
-      fontFamily: "'DM Sans',sans-serif",
+      fontFamily: "system-ui,-apple-system,sans-serif",
       cursor: "pointer"
     }
   }, "\u2190 Re-parse"), /*#__PURE__*/React.createElement("button", {
@@ -3818,7 +3818,7 @@ ${transcript}`;
       fontSize: 14,
       fontWeight: 700,
       border: "none",
-      fontFamily: "'DM Sans',sans-serif",
+      fontFamily: "system-ui,-apple-system,sans-serif",
       cursor: "pointer",
       background: hasSomething ? "#3b82f6" : "var(--border)",
       color: hasSomething ? "#0b1120" : "#3a4f60"
@@ -3863,7 +3863,7 @@ function MicroList({
         border: isActive ? `1px solid ${color}` : "1px solid #2a2a2a",
         background: isActive ? `${color}18` : "transparent",
         color: isActive ? color : "#4d6070",
-        fontFamily: "'DM Sans',sans-serif",
+        fontFamily: "system-ui,-apple-system,sans-serif",
         transition: "all .15s"
       }
     }, l, " ", /*#__PURE__*/React.createElement("span", {
@@ -4015,7 +4015,7 @@ window.toggleDashMenu = function() {
   if (menu) menu.style.display = dashMenuOpen ? 'block' : 'none';
 };
 document.addEventListener('click', function(e) {
-  if (dashMenuOpen && !e.target.closest('#dash-switcher-area') && !e.target.closest('[onclick*="toggleDashMenu"]')) {
+  if (dashMenuOpen && !e.target.closest('#dash-switcher-area') && e.target.id !== 'dash-menu-trigger' && !e.target.closest('#dash-menu-trigger')) {
     dashMenuOpen = false;
     const menu = document.getElementById('dash-menu');
     if (menu) menu.style.display = 'none';
