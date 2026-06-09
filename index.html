@@ -2557,11 +2557,20 @@ function App() {
       fontSize: 11,
       color: "#22c55e"
     }
-  }, "\u2713 ", d.micros.filter(m => m.type === "win").length, " wins"))))), /*#__PURE__*/React.createElement(BottomSheet, {
-    show: !!showBPView,
-    onClose: () => setShowBPView(null),
-    title: (showBPView === null || showBPView === void 0 ? void 0 : showBPView.title) || ""
-  }, showBPView && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  }, "\u2713 ", d.micros.filter(m => m.type === "win").length, " wins"))))),
+  showBPView && /*#__PURE__*/React.createElement("div", {
+    style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px 16px" },
+    onClick: () => setShowBPView(null)
+  }, /*#__PURE__*/React.createElement("div", {
+    style: { background: "#111827", borderRadius: 14, border: "1px solid #2a2a2a", width: "100%", maxWidth: 380, maxHeight: "88vh", overflowY: "auto", padding: "20px 18px 28px", position: "relative" },
+    onClick: e => e.stopPropagation()
+  },
+    /*#__PURE__*/React.createElement("button", {
+      onClick: () => setShowBPView(null),
+      style: { position: "absolute", top: 12, right: 14, background: "none", border: "none", color: "#4d6070", fontSize: 18, cursor: "pointer", lineHeight: 1 }
+    }, "\u2715"),
+    /*#__PURE__*/React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: "#f0f4f8", marginBottom: 12, paddingRight: 24 } }, showBPView.title),
+    /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       flexWrap: "wrap",
@@ -2615,7 +2624,8 @@ function App() {
       color: "#4d6070",
       lineHeight: 1.65
     }
-  }, showBPView.notes)))), /*#__PURE__*/React.createElement(BottomSheet, {
+  }, showBPView.notes))
+  )), /*#__PURE__*/React.createElement(BottomSheet, {
     show: showBP,
     onClose: closeBP,
     title: editBP ? "Edit blueprint" : "New blueprint"
