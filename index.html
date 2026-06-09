@@ -30,6 +30,53 @@ input,select,textarea{font-family:inherit;}
 <body>
   <div id="dash-switcher-area" class="dash-switcher" style="position:fixed;top:16px;left:calc(50% - 350px + 20px);z-index:150;"></div>
   <div id="root"></div>
+
+  <!-- Sync modal -->
+  <div id="sync-modal" onclick="if(event.target===this)window.closeSyncModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;padding:1rem">
+    <div style="background:#111827;border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:1.25rem;width:min(480px,92vw);max-height:90vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.6)">
+      <div style="font-size:15px;font-weight:700;color:#f0f4f8;margin-bottom:.25rem">☁ Cloud sync — Supabase</div>
+      <div style="font-size:12px;color:#4d6070;margin-bottom:.75rem;line-height:1.5">Syncs your Game Log data across all devices. Uses the same <code style="font-size:11px;color:#60a5fa">dashboard_data</code> table.</div>
+      <details style="margin-bottom:.75rem">
+        <summary style="font-size:12px;color:#8fa3b1;cursor:pointer;padding:.5rem .75rem;background:#1a2236;border:1px solid rgba(255,255,255,.08);border-radius:8px;list-style:none">▶ One-time setup instructions</summary>
+        <div style="background:#1a2236;border:1px solid rgba(255,255,255,.08);border-top:none;border-radius:0 0 8px 8px;padding:.75rem 1rem;font-size:12px;line-height:1.7;color:#8fa3b1">
+          1. Go to <a href="https://supabase.com" target="_blank" style="color:#60a5fa">supabase.com</a> → New project<br>
+          2. SQL Editor → run:<br>
+          <code style="display:block;background:#0b1120;border-radius:5px;padding:.4rem .6rem;margin:.4rem 0;color:#4ade80;font-size:10px;white-space:pre-wrap">create table if not exists dashboard_data (
+  key text primary key,
+  value text,
+  updated_at timestamptz default now()
+);</code>
+          3. Settings → API → copy Project URL + anon key
+        </div>
+      </details>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:.75rem">
+        <div>
+          <label style="font-size:11px;color:#4d6070;display:block;margin-bottom:4px">Project URL</label>
+          <input id="sync-url-inp" placeholder="https://xxxxxxxxxxxx.supabase.co" style="width:100%;font-size:12px;font-family:monospace;background:#1a2236;border:1px solid rgba(255,255,255,.08);color:#f0f4f8;border-radius:8px;padding:9px 12px;outline:none">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#4d6070;display:block;margin-bottom:4px">Anon public key</label>
+          <input id="sync-key-inp" placeholder="eyJhbGc..." style="width:100%;font-size:12px;font-family:monospace;background:#1a2236;border:1px solid rgba(255,255,255,.08);color:#f0f4f8;border-radius:8px;padding:9px 12px;outline:none">
+        </div>
+      </div>
+      <div id="sync-modal-msg" style="font-size:12px;min-height:16px;margin-bottom:.6rem"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+        <button onclick="window.closeSyncModal()" style="padding:8px 16px;border-radius:7px;border:1px solid rgba(255,255,255,.12);background:transparent;color:#8fa3b1;font-size:13px;cursor:pointer">Cancel</button>
+        <button id="sync-disconnect-btn" onclick="window.disconnectSync()" style="display:none;padding:8px 16px;border-radius:7px;border:1px solid rgba(239,68,68,.3);background:transparent;color:#f87171;font-size:13px;cursor:pointer">Disconnect</button>
+        <button onclick="window.saveCloudConfig()" style="padding:8px 16px;border-radius:7px;border:1px solid rgba(59,130,246,.4);background:rgba(59,130,246,.12);color:#93c5fd;font-size:13px;font-weight:600;cursor:pointer">Connect &amp; sync</button>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    .sync-pill{display:flex;align-items:center;gap:5px;font-size:11px;color:#4d6070;padding:4px 10px;border-radius:20px;border:1px solid rgba(255,255,255,.1);background:#111827;cursor:pointer;transition:all .15s;white-space:nowrap}
+    .sync-dot{width:7px;height:7px;border-radius:50%;background:#4d6070;flex-shrink:0;transition:background .3s}
+    #sync-modal.open{display:flex!important}
+    .dash-menu{background:#111827;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:6px;min-width:210px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+    .dash-menu-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:7px;font-size:13px;cursor:pointer;transition:background .12s;color:#f0f4f8}
+    .dash-menu-item:hover{background:rgba(255,255,255,.06)}
+    .dash-menu-item.active{color:#3b82f6;font-weight:600;cursor:default}
+  </style>
   <script>
 const { useState, useEffect, useRef } = React;
 function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); }
@@ -3986,7 +4033,7 @@ window.toggleDashMenu = function() {
   if (menu) menu.style.display = dashMenuOpen ? 'block' : 'none';
 };
 document.addEventListener('click', function(e) {
-  if (dashMenuOpen && !e.target.closest('#dash-switcher-area')) {
+  if (dashMenuOpen && !e.target.closest('#dash-switcher-area') && !e.target.closest('[onclick*="toggleDashMenu"]')) {
     dashMenuOpen = false;
     const menu = document.getElementById('dash-menu');
     if (menu) menu.style.display = 'none';
