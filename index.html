@@ -2824,11 +2824,14 @@ function App() {
     style: {
       flex: 1
     }
-  }, "\u2713 Log it \u2014 +", XP_REWARDS[logEntry.outcome], " xp"))), /*#__PURE__*/React.createElement(BottomSheet, {
-    show: showMacro,
-    onClose: closeMacro,
-    title: editMacro ? "Edit field report" : "Field report"
-  }, /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+  }, "\u2713 Log it \u2014 +", XP_REWARDS[logEntry.outcome], " xp"))), showMacro && /*#__PURE__*/React.createElement("div", {
+    style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px 16px" },
+    onClick: closeMacro
+  }, /*#__PURE__*/React.createElement("div", {
+    style: { background: "#111827", borderRadius: 14, border: "1px solid #2a2a2a", width: "100%", maxWidth: 400, maxHeight: "90vh", overflowY: "auto", padding: "20px 18px 24px", position: "relative" },
+    onClick: e => e.stopPropagation()
+  },
+    React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: "#f0f4f8", marginBottom: 18 } }, editMacro ? "Edit field report" : "Field report"), /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
     c: "Date"
   }), /*#__PURE__*/React.createElement(Inp, {
     type: "date",
@@ -2890,7 +2893,8 @@ function App() {
     style: {
       flex: 1
     }
-  }, editMacro ? "Save changes" : "Save report"))), /*#__PURE__*/React.createElement(BottomSheet, {
+  }, editMacro ? "Save changes" : "Save report"))
+  )), /*#__PURE__*/React.createElement(BottomSheet, {
     show: showMicro,
     onClose: closeMicro,
     title: editMicro ? "Edit entry" : "Interaction log"
