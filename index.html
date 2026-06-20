@@ -757,6 +757,7 @@ function App() {
     note: ""
   });
   const [mindForm, setMindForm] = useState("");
+  const dragMindId = React.useRef(null);
   const [blockForm, setBlockForm] = useState("");
   const [bpForm, setBpForm] = useState({
     title: "",
@@ -1070,6 +1071,17 @@ function App() {
     setMindForm("");
     setShowMind(false);
   }
+  function reorderMindsets(fromId, toId) {
+    setData(d => {
+      const arr = [...(d.mindsets || [])];
+      const fi = arr.findIndex(m => String(m.id) === String(fromId));
+      const ti = arr.findIndex(m => String(m.id) === String(toId));
+      if (fi < 0 || ti < 0) return d;
+      const [moved] = arr.splice(fi, 1);
+      arr.splice(ti, 0, moved);
+      return { ...d, mindsets: arr };
+    });
+  }
   function addBlocker() {
     if (!blockForm.trim()) return;
     setData(d => ({
@@ -1199,6 +1211,10 @@ function App() {
   const dateRate = data.numbersGot > 0 ? Math.round(data.datesSet / data.numbersGot * 100) : 0;
   const xpInLevel = data.xp % XP_PER_LEVEL;
   const ROW1 = [{
+    id: "pregame",
+    icon: "🔥",
+    label: "Pre-Game"
+  }, {
     id: "mindset",
     icon: "🧠",
     label: "Mindset"
@@ -1210,10 +1226,6 @@ function App() {
     id: "overview",
     icon: "📊",
     label: "Stats"
-  }, {
-    id: "pregame",
-    icon: "🔥",
-    label: "Pre-Game"
   }];
   const ROW2 = [{
     id: "field",
@@ -2274,7 +2286,13 @@ function App() {
     }
   }, "No mindsets yet.") : (data.mindsets || []).map(m => /*#__PURE__*/React.createElement("div", {
     key: m.id,
-    className: "mindset-card"
+    className: "mindset-card",
+    draggable: true,
+    onDragStart: () => { dragMindId.current = String(m.id); },
+    onDragOver: e => e.preventDefault(),
+    onDrop: () => { if (dragMindId.current && dragMindId.current !== String(m.id)) reorderMindsets(dragMindId.current, String(m.id)); },
+    onDragEnd: () => { dragMindId.current = null; },
+    style: { cursor: "grab" }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
