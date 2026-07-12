@@ -725,6 +725,108 @@ function StepRow({
   }, text)));
 }
 
+// ── review deck — one card per logged approach/miss ──────────
+function ReviewTab({ data }) {
+  const RC = React.createElement;
+  const list = [...(data.microLog || [])].sort((a, b) =>
+    (a.date || "") < (b.date || "") ? -1 :
+    (a.date || "") > (b.date || "") ? 1 : (a.id || 0) - (b.id || 0));
+  const [idx, setIdx] = useState(list.length - 1);
+  const [calYM, setCalYM] = useState(null);    // [year, month0] when calendar open
+  const [dayKey, setDayKey] = useState(null);  // date string when day list open
+  const i = Math.min(Math.max(idx, 0), Math.max(list.length - 1, 0));
+  const m = list[i];
+  useEffect(() => {
+    const onKey = e => {
+      const t = (e.target.tagName || "").toLowerCase();
+      if (t === "input" || t === "textarea" || t === "select") return;
+      if (e.key === "ArrowLeft") setIdx(x => Math.max(x - 1, 0));
+      if (e.key === "ArrowRight") setIdx(x => Math.min(x + 1, list.length - 1));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [list.length]);
+  if (!list.length) return RC("div", {
+    style: { color: "#4d6070", fontSize: 13, padding: 24, textAlign: "center" }
+  }, "No approaches logged yet — add entries in the Log tab.");
+  const tradeDays = new Set(list.map(x => x.date));
+  const typeColor = t => t === "win" ? "#34d399" : t === "missed" ? "#e07040" : "#60a5fa";
+  const bp = m.blueprintId && (data.blueprints || []).find(b => b.id === m.blueprintId);
+  const muted = { fontSize: 11, color: "#4d6070" };
+  const chip = { background: "#1a2236", border: "1px solid rgba(255,255,255,.08)", borderRadius: 10, padding: "2px 9px", fontSize: 11, color: "#8fa4b8" };
+  const navBtn = { background: "#1a2236", border: "1px solid rgba(255,255,255,.08)", borderRadius: 8, color: "#f0f4f8", width: 40, height: 34, fontSize: 15, cursor: "pointer" };
+
+  // month grid for the picker
+  const cal = (() => {
+    if (!calYM) return null;
+    const [y, mo] = calYM;
+    const first = new Date(y, mo, 1).getDay();
+    const nDays = new Date(y, mo + 1, 0).getDate();
+    const cells = [];
+    for (let k = 0; k < first; k++) cells.push(null);
+    for (let d = 1; d <= nDays; d++)
+      cells.push(`${y}-${String(mo + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
+    return { y, mo, cells };
+  })();
+  const overlay = { position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center" };
+  const modal = { background: "#121a2b", border: "1px solid rgba(255,255,255,.1)", borderRadius: 12, padding: 16, width: 300, maxHeight: "70vh", overflowY: "auto" };
+
+  return RC("div", { style: { animation: "fadeUp .2s ease" } },
+    RC("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 } },
+      RC("span", { style: { ...muted, letterSpacing: 1 } }, `${i + 1} / ${list.length}`),
+      RC("div", { style: { display: "flex", gap: 8 } },
+        RC("button", { style: navBtn, onClick: () => setIdx(x => Math.max(x - 1, 0)) }, "←"),
+        RC("button", { style: navBtn, onClick: () => setIdx(x => Math.min(x + 1, list.length - 1)) }, "→"))),
+    RC("div", { style: { background: "#121a2b", border: "1px solid rgba(255,255,255,.08)", borderRadius: 14, padding: 18 } },
+      RC("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 } },
+        RC("div", { style: { fontSize: 22, fontWeight: 700, color: "#f0f4f8" } }, m.venue || "(no venue)"),
+        RC("span", { style: { ...chip, color: typeColor(m.type), borderColor: typeColor(m.type) } }, (m.type || "log").toUpperCase())),
+      RC("div", {
+        style: { ...muted, marginBottom: 12, cursor: "pointer", textDecoration: "underline dotted" },
+        title: "Pick a date",
+        onClick: () => {
+          const [y, mo] = (m.date || today()).split("-").map(Number);
+          setCalYM([y, mo - 1]);
+        }
+      }, `${m.date || "—"}${m.ts ? " · " + m.ts : ""}`),
+      (m.blockers || []).length > 0 && RC("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 } },
+        m.blockers.map((b, k) => RC("span", { key: k, style: { ...chip, color: "#e07040" } }, b))),
+      bp && RC("div", { style: { ...muted, marginBottom: 10 } }, "Blueprint: ", RC("b", { style: { color: "#60a5fa" } }, bp.title)),
+      RC("p", { style: { fontSize: 14, color: "#c7d4e0", lineHeight: 1.7, whiteSpace: "pre-wrap", margin: 0 } }, m.text || "(no notes)")),
+
+    calYM && RC("div", { style: overlay, onClick: e => { if (e.target === e.currentTarget) setCalYM(null); } },
+      RC("div", { style: modal },
+        RC("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } },
+          RC("button", { style: navBtn, onClick: () => setCalYM(([y, mo]) => mo === 0 ? [y - 1, 11] : [y, mo - 1]) }, "◀"),
+          RC("b", { style: { color: "#f0f4f8", fontSize: 14 } }, `${MONTHS[cal.mo]} ${cal.y}`),
+          RC("button", { style: navBtn, onClick: () => setCalYM(([y, mo]) => mo === 11 ? [y + 1, 0] : [y, mo + 1]) }, "▶")),
+        RC("div", { style: { display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4 } },
+          ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map(d => RC("div", { key: d, style: { ...muted, textAlign: "center" } }, d)),
+          cal.cells.map((dk, k) => RC("div", {
+            key: k,
+            onClick: dk && tradeDays.has(dk) ? () => { setDayKey(dk); setCalYM(null); } : undefined,
+            style: {
+              textAlign: "center", padding: "7px 0", fontSize: 12, borderRadius: 6,
+              color: dk && tradeDays.has(dk) ? "#f0f4f8" : "#3a4f60",
+              background: dk && tradeDays.has(dk) ? "#1a2236" : "transparent",
+              border: dk && tradeDays.has(dk) ? "1px solid rgba(255,255,255,.1)" : "none",
+              cursor: dk && tradeDays.has(dk) ? "pointer" : "default",
+              fontWeight: dk && tradeDays.has(dk) ? 700 : 400
+            }
+          }, dk ? +dk.slice(8) : ""))))),
+
+    dayKey && RC("div", { style: overlay, onClick: e => { if (e.target === e.currentTarget) setDayKey(null); } },
+      RC("div", { style: modal },
+        RC("b", { style: { color: "#f0f4f8", fontSize: 13 } }, `Approaches on ${dayKey}`),
+        list.map((x, k) => x.date === dayKey && RC("div", {
+          key: x.id || k,
+          onClick: () => { setIdx(k); setDayKey(null); },
+          style: { display: "flex", justifyContent: "space-between", gap: 10, padding: "9px 10px", marginTop: 8, background: "#1a2236", border: "1px solid rgba(255,255,255,.08)", borderRadius: 8, cursor: "pointer" }
+        },
+          RC("span", { style: { fontSize: 12, color: "#f0f4f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, `${x.venue || "(no venue)"} · ${(x.text || "").slice(0, 30)}`),
+          RC("span", { style: { fontSize: 11, color: typeColor(x.type), flexShrink: 0 } }, (x.type || "").toUpperCase()))))));
+}
+
 // ── app ──────────────────────────────────────────────────────
 function App() {
   const [data, setData] = useState(load);
@@ -1267,6 +1369,10 @@ function App() {
     id: "vault",
     icon: "🎬",
     label: "Vault"
+  }, {
+    id: "review",
+    icon: "🔎",
+    label: "Review"
   }];
   const fabMap = {
     pregame: null,
@@ -1285,7 +1391,8 @@ function App() {
       setShowBP(true);
     },
     mindset: null,
-    vault: null
+    vault: null,
+    review: null
   };
   return /*#__PURE__*/React.createElement("div", {
     style: {
@@ -2538,7 +2645,9 @@ function App() {
         lineHeight: 1.5
       }
     }, e.note)));
-  }))), /*#__PURE__*/React.createElement("div", {
+  }))), tab === "review" && /*#__PURE__*/React.createElement(ReviewTab, {
+    data: data
+  }), /*#__PURE__*/React.createElement("div", {
     className: "tab-bar"
   }, /*#__PURE__*/React.createElement("div", {
     className: "tab-row"
