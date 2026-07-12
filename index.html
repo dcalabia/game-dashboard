@@ -726,35 +726,111 @@ function StepRow({
 }
 
 // ── review deck — one card per logged approach/miss ──────────
-function ReviewTab({ data }) {
+const REV_PRESETS = ["Best Lessons", "Rework This", "Breakthrough", "Blocker Pattern"];
+function ReviewTab({ data, setData }) {
   const RC = React.createElement;
-  const list = [...(data.microLog || [])].sort((a, b) =>
+  const all = [...(data.microLog || [])].sort((a, b) =>
     (a.date || "") < (b.date || "") ? -1 :
     (a.date || "") > (b.date || "") ? 1 : (a.id || 0) - (b.id || 0));
+  const [filter, setFilter] = useState("all");
+  const matches = x => filter === "all" ? true :
+    (filter === "win" || filter === "missed") ? x.type === filter :
+    (x.tags || []).includes(filter);
+  const list = all.filter(matches);
   const [idx, setIdx] = useState(list.length - 1);
   const [calYM, setCalYM] = useState(null);    // [year, month0] when calendar open
   const [dayKey, setDayKey] = useState(null);  // date string when day list open
+  const [editField, setEditField] = useState(null); // "venue"|"text"|"blockers"|"blueprint"|"type"|null
+  const [tagInput, setTagInput] = useState(null);   // null = hidden, string = open
+  const [hlOpen, setHlOpen] = useState(false);
+  const noteRef = useRef(null);
+  const jumpRef = useRef(null);   // index to land on after a filter change
+  const firstRun = useRef(true);
+  useEffect(() => {
+    if (firstRun.current) { firstRun.current = false; return; }
+    if (jumpRef.current != null) { setIdx(jumpRef.current); jumpRef.current = null; }
+    else setIdx(999999); // clamps to newest of the new filter
+    setEditField(null);
+  }, [filter]);
   const i = Math.min(Math.max(idx, 0), Math.max(list.length - 1, 0));
   const m = list[i];
+  const patch = (id, fields) => setData(d => ({ ...d, microLog: d.microLog.map(x => x.id === id ? { ...x, ...fields } : x) }));
   useEffect(() => {
     const onKey = e => {
       const t = (e.target.tagName || "").toLowerCase();
-      if (t === "input" || t === "textarea" || t === "select") return;
+      if (t === "input" || t === "textarea" || t === "select" || e.target.isContentEditable) return;
       if (e.key === "ArrowLeft") setIdx(x => Math.max(x - 1, 0));
       if (e.key === "ArrowRight") setIdx(x => Math.min(x + 1, list.length - 1));
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [list.length]);
-  if (!list.length) return RC("div", {
+  if (!all.length) return RC("div", {
     style: { color: "#4d6070", fontSize: 13, padding: 24, textAlign: "center" }
   }, "No approaches logged yet — add entries in the Log tab.");
-  const tradeDays = new Set(list.map(x => x.date));
+  const tradeDays = new Set(all.map(x => x.date));
   const typeColor = t => t === "win" ? "#34d399" : t === "missed" ? "#e07040" : "#60a5fa";
-  const bp = m.blueprintId && (data.blueprints || []).find(b => b.id === m.blueprintId);
   const muted = { fontSize: 11, color: "#4d6070" };
   const chip = { background: "#1a2236", border: "1px solid rgba(255,255,255,.08)", borderRadius: 10, padding: "2px 9px", fontSize: 11, color: "#8fa4b8" };
   const navBtn = { background: "#1a2236", border: "1px solid rgba(255,255,255,.08)", borderRadius: 8, color: "#f0f4f8", width: 40, height: 34, fontSize: 15, cursor: "pointer" };
+  const inputSt = { background: "#1a2236", border: "1px solid rgba(96,165,250,.5)", borderRadius: 6, color: "#f0f4f8", fontSize: 13, padding: "4px 8px", outline: "none", fontFamily: "inherit" };
+
+  // jump to an entry even if the current filter hides it
+  const jumpTo = entry => {
+    const k = list.indexOf(entry);
+    if (k >= 0) setIdx(k);
+    else { jumpRef.current = all.indexOf(entry); setFilter("all"); }
+  };
+
+  // tag counts for the filter dropdown
+  const tagCounts = {};
+  all.forEach(x => (x.tags || []).forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; }));
+  const allTags = [...new Set([...REV_PRESETS, ...Object.keys(tagCounts)])];
+  const addTag = t => { t = (t || "").trim(); if (!t || !m) return; if (!(m.tags || []).includes(t)) patch(m.id, { tags: [...(m.tags || []), t] }); };
+  const rmTag = t => m && patch(m.id, { tags: (m.tags || []).filter(x => x !== t) });
+
+  // ── notes panel helpers ──
+  const saveNote = () => { if (noteRef.current && m && noteRef.current.value !== (m.review_note || "")) patch(m.id, { review_note: noteRef.current.value }); };
+  const toggleStar = () => {
+    const ta = noteRef.current; if (!ta || !m) return;
+    const v = ta.value, p = ta.selectionStart || 0;
+    const s = v.lastIndexOf("\n", p - 1) + 1;
+    let e2 = v.indexOf("\n", p); if (e2 === -1) e2 = v.length;
+    const line = v.slice(s, e2);
+    const pre = (line.match(/^(\s*(?:•\s*)?)/) || ["", ""])[1];
+    const rest = line.slice(pre.length);
+    const nl = rest.startsWith("★") ? pre + rest.replace(/^★\s*/, "") : pre + "★ " + rest;
+    ta.value = v.slice(0, s) + nl + v.slice(e2);
+    patch(m.id, { review_note: ta.value });
+    ta.focus();
+  };
+  const noteKey = e => {
+    const ta = e.target;
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); ta.blur(); return; }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const v = ta.value, p = ta.selectionStart, ins = "\n• ";
+      ta.value = v.slice(0, p) + ins + v.slice(ta.selectionEnd);
+      ta.selectionStart = ta.selectionEnd = p + ins.length;
+      return;
+    }
+    if ((e.key === "h" || e.key === "H") && (e.ctrlKey || e.metaKey)) { e.preventDefault(); toggleStar(); }
+  };
+  const noteStyle = {
+    width: "100%", minHeight: 150, resize: "vertical", boxSizing: "border-box",
+    backgroundColor: "#0e1526", backgroundAttachment: "local",
+    background: "repeating-linear-gradient(#0e1526, #0e1526 25px, rgba(96,165,250,.18) 25px, rgba(96,165,250,.18) 26px)",
+    border: "1px solid rgba(255,255,255,.08)", borderLeft: "3px solid rgba(224,64,64,.55)",
+    borderRadius: 8, color: "#dbe7f3", fontSize: 13, lineHeight: "26px",
+    padding: "0 12px 0 16px", outline: "none", fontFamily: "inherit"
+  };
+
+  // ── highlights across all entries (newest first) ──
+  const highlights = [];
+  [...all].reverse().forEach(x => (x.review_note || "").split("\n").forEach(l => {
+    const t = l.replace(/^\s*(?:•\s*)?/, "");
+    if (t.startsWith("★")) highlights.push({ entry: x, text: t.replace(/^★\s*/, "") });
+  }));
 
   // month grid for the picker
   const cal = (() => {
@@ -771,16 +847,51 @@ function ReviewTab({ data }) {
   const overlay = { position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center" };
   const modal = { background: "#121a2b", border: "1px solid rgba(255,255,255,.1)", borderRadius: 12, padding: 16, width: 300, maxHeight: "70vh", overflowY: "auto" };
 
+  const bp = m && m.blueprintId && (data.blueprints || []).find(b => b.id === m.blueprintId);
+
   return RC("div", { style: { animation: "fadeUp .2s ease" } },
-    RC("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 } },
-      RC("span", { style: { ...muted, letterSpacing: 1 } }, `${i + 1} / ${list.length}`),
-      RC("div", { style: { display: "flex", gap: 8 } },
+    // header: counter + filter + nav
+    RC("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 8 } },
+      RC("span", { style: { ...muted, letterSpacing: 1, flexShrink: 0 } }, list.length ? `${i + 1} / ${list.length}` : "0 / 0"),
+      RC("select", {
+        value: filter,
+        onChange: e => setFilter(e.target.value),
+        style: { ...inputSt, border: "1px solid rgba(255,255,255,.12)", fontSize: 12, maxWidth: 170 }
+      },
+        RC("option", { value: "all" }, `All (${all.length})`),
+        RC("option", { value: "win" }, `WIN (${all.filter(x => x.type === "win").length})`),
+        RC("option", { value: "missed" }, `MISSED (${all.filter(x => x.type === "missed").length})`),
+        allTags.map(t => RC("option", { key: t, value: t }, `${t} (${tagCounts[t] || 0})`))),
+      RC("div", { style: { display: "flex", gap: 8, flexShrink: 0 } },
         RC("button", { style: navBtn, onClick: () => setIdx(x => Math.max(x - 1, 0)) }, "←"),
         RC("button", { style: navBtn, onClick: () => setIdx(x => Math.min(x + 1, list.length - 1)) }, "→"))),
-    RC("div", { style: { background: "#121a2b", border: "1px solid rgba(255,255,255,.08)", borderRadius: 14, padding: 18 } },
-      RC("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 } },
-        RC("div", { style: { fontSize: 22, fontWeight: 700, color: "#f0f4f8" } }, m.venue || "(no venue)"),
-        RC("span", { style: { ...chip, color: typeColor(m.type), borderColor: typeColor(m.type) } }, (m.type || "log").toUpperCase())),
+
+    !m && RC("div", { style: { color: "#4d6070", fontSize: 13, padding: 24, textAlign: "center" } },
+      "Nothing matches this filter. ",
+      RC("span", { style: { color: "#60a5fa", cursor: "pointer", textDecoration: "underline" }, onClick: () => setFilter("all") }, "Show all")),
+
+    m && RC("div", { style: { background: "#121a2b", border: "1px solid rgba(255,255,255,.08)", borderRadius: 14, padding: 18 } },
+      RC("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4, gap: 10 } },
+        editField === "venue"
+          ? RC("input", {
+              autoFocus: true, defaultValue: m.venue || "", style: { ...inputSt, fontSize: 18, fontWeight: 700 },
+              onBlur: e => { patch(m.id, { venue: e.target.value.trim() }); setEditField(null); },
+              onKeyDown: e => { if (e.key === "Enter") e.target.blur(); if (e.key === "Escape") setEditField(null); }
+            })
+          : RC("div", {
+              style: { fontSize: 22, fontWeight: 700, color: "#f0f4f8", cursor: "pointer" },
+              title: "Click to edit venue", onClick: () => setEditField("venue")
+            }, m.venue || "(no venue)"),
+        editField === "type"
+          ? RC("select", {
+              autoFocus: true, defaultValue: m.type || "log", style: inputSt,
+              onChange: e => { patch(m.id, { type: e.target.value }); setEditField(null); },
+              onBlur: () => setEditField(null)
+            }, ["win", "missed", "log"].map(t => RC("option", { key: t, value: t }, t.toUpperCase())))
+          : RC("span", {
+              style: { ...chip, color: typeColor(m.type), borderColor: typeColor(m.type), cursor: "pointer", flexShrink: 0 },
+              title: "Click to change type", onClick: () => setEditField("type")
+            }, (m.type || "log").toUpperCase())),
       RC("div", {
         style: { ...muted, marginBottom: 12, cursor: "pointer", textDecoration: "underline dotted" },
         title: "Pick a date",
@@ -789,10 +900,103 @@ function ReviewTab({ data }) {
           setCalYM([y, mo - 1]);
         }
       }, `${m.date || "—"}${m.ts ? " · " + m.ts : ""}`),
-      (m.blockers || []).length > 0 && RC("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 } },
-        m.blockers.map((b, k) => RC("span", { key: k, style: { ...chip, color: "#e07040" } }, b))),
-      bp && RC("div", { style: { ...muted, marginBottom: 10 } }, "Blueprint: ", RC("b", { style: { color: "#60a5fa" } }, bp.title)),
-      RC("p", { style: { fontSize: 14, color: "#c7d4e0", lineHeight: 1.7, whiteSpace: "pre-wrap", margin: 0 } }, m.text || "(no notes)")),
+
+      // blockers — click to toggle-edit
+      editField === "blockers"
+        ? RC("div", { style: { marginBottom: 10 } },
+            RC("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 } },
+              [...new Set([...(data.blockers || []), ...(m.blockers || [])])].map((b, k) => {
+                const on = (m.blockers || []).includes(b);
+                return RC("span", {
+                  key: k,
+                  onClick: () => patch(m.id, { blockers: on ? (m.blockers || []).filter(x => x !== b) : [...(m.blockers || []), b] }),
+                  style: { ...chip, cursor: "pointer", color: on ? "#e07040" : "#4d6070", borderColor: on ? "#e07040" : "rgba(255,255,255,.08)" }
+                }, b);
+              })),
+            RC("button", { style: { ...navBtn, width: "auto", height: "auto", padding: "3px 12px", fontSize: 11 }, onClick: () => setEditField(null) }, "Done"))
+        : RC("div", {
+            style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10, cursor: "pointer" },
+            title: "Click to edit blockers", onClick: () => setEditField("blockers")
+          },
+            (m.blockers || []).length
+              ? m.blockers.map((b, k) => RC("span", { key: k, style: { ...chip, color: "#e07040" } }, b))
+              : RC("span", { style: { ...muted, fontStyle: "italic" } }, "+ blockers")),
+
+      // blueprint — click to change
+      editField === "blueprint"
+        ? RC("select", {
+            autoFocus: true, defaultValue: m.blueprintId || "", style: { ...inputSt, marginBottom: 10 },
+            onChange: e => { patch(m.id, { blueprintId: e.target.value ? +e.target.value : null }); setEditField(null); },
+            onBlur: () => setEditField(null)
+          },
+            RC("option", { value: "" }, "(no blueprint)"),
+            (data.blueprints || []).map(b => RC("option", { key: b.id, value: b.id }, b.title)))
+        : RC("div", {
+            style: { ...muted, marginBottom: 10, cursor: "pointer" },
+            title: "Click to change blueprint", onClick: () => setEditField("blueprint")
+          }, "Blueprint: ", bp ? RC("b", { style: { color: "#60a5fa" } }, bp.title) : RC("span", { style: { fontStyle: "italic" } }, "none")),
+
+      // entry text — click to edit
+      editField === "text"
+        ? RC("textarea", {
+            autoFocus: true, defaultValue: m.text || "",
+            style: { ...inputSt, width: "100%", minHeight: 90, boxSizing: "border-box", lineHeight: 1.7, resize: "vertical" },
+            onBlur: e => { patch(m.id, { text: e.target.value }); setEditField(null); },
+            onKeyDown: e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) e.target.blur(); if (e.key === "Escape") setEditField(null); }
+          })
+        : RC("p", {
+            style: { fontSize: 14, color: "#c7d4e0", lineHeight: 1.7, whiteSpace: "pre-wrap", margin: 0, cursor: "pointer" },
+            title: "Click to edit", onClick: () => setEditField("text")
+          }, m.text || "(no notes)"),
+
+      // tags row
+      RC("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", marginTop: 14, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,.06)" } },
+        (m.tags || []).map(t => RC("span", { key: t, style: { ...chip, color: "#fbbf24", borderColor: "rgba(251,191,36,.4)" } },
+          t, RC("span", { style: { marginLeft: 6, cursor: "pointer", color: "#4d6070" }, onClick: () => rmTag(t) }, "✕"))),
+        REV_PRESETS.filter(t => !(m.tags || []).includes(t)).map(t =>
+          RC("span", { key: t, style: { ...chip, cursor: "pointer", color: "#4d6070" }, title: "Add tag", onClick: () => addTag(t) }, "+ " + t)),
+        tagInput === null
+          ? RC("span", { style: { ...chip, cursor: "pointer", color: "#60a5fa" }, onClick: () => setTagInput("") }, "+ tag")
+          : RC("input", {
+              autoFocus: true, value: tagInput, placeholder: "tag…",
+              style: { ...inputSt, fontSize: 11, width: 110, padding: "2px 8px" },
+              onChange: e => setTagInput(e.target.value),
+              onKeyDown: e => {
+                if (e.key === "Enter") { addTag(tagInput); setTagInput(null); }
+                if (e.key === "Escape") setTagInput(null);
+              },
+              onBlur: () => { addTag(tagInput); setTagInput(null); }
+            }))),
+
+    // ── notes panel ──
+    m && RC("div", { style: { marginTop: 14 } },
+      RC("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
+        RC("span", { style: { ...muted, letterSpacing: 1 } }, "REVIEW NOTES"),
+        RC("button", {
+          style: { ...navBtn, width: "auto", height: "auto", padding: "4px 12px", fontSize: 11 },
+          title: "Star the line at the cursor (Ctrl+H)", onClick: toggleStar
+        }, "★ Highlight line")),
+      RC("textarea", {
+        key: m.id, ref: noteRef, defaultValue: m.review_note || "",
+        placeholder: "• what happened, what to fix, what to repeat…  (Enter = new bullet, Ctrl+H = star line, Ctrl+Enter = save)",
+        style: noteStyle, onBlur: saveNote, onKeyDown: noteKey
+      })),
+
+    // ── highlights across all entries ──
+    highlights.length > 0 && RC("div", { style: { marginTop: 16, background: "#121a2b", border: "1px solid rgba(255,255,255,.08)", borderRadius: 14, padding: "12px 16px" } },
+      RC("div", {
+        style: { display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" },
+        onClick: () => setHlOpen(o => !o)
+      },
+        RC("span", { style: { fontSize: 13, fontWeight: 700, color: "#fbbf24" } }, `★ Highlights (${highlights.length})`),
+        RC("span", { style: muted }, hlOpen ? "▲" : "▼")),
+      hlOpen && highlights.map((h, k) => RC("div", {
+        key: k,
+        onClick: () => jumpTo(h.entry),
+        style: { display: "flex", gap: 8, alignItems: "baseline", padding: "7px 0", borderTop: k ? "1px solid rgba(255,255,255,.05)" : "none", marginTop: k ? 2 : 8, cursor: "pointer" }
+      },
+        RC("span", { style: { ...muted, flexShrink: 0, width: 110 } }, `${h.entry.date || "—"} · ${(h.entry.venue || "").slice(0, 10)}`),
+        RC("span", { style: { fontSize: 12, color: "#0b1120", background: "rgba(251,191,36,.85)", borderRadius: 3, padding: "1px 5px", lineHeight: 1.5 } }, h.text)))),
 
     calYM && RC("div", { style: overlay, onClick: e => { if (e.target === e.currentTarget) setCalYM(null); } },
       RC("div", { style: modal },
@@ -818,9 +1022,9 @@ function ReviewTab({ data }) {
     dayKey && RC("div", { style: overlay, onClick: e => { if (e.target === e.currentTarget) setDayKey(null); } },
       RC("div", { style: modal },
         RC("b", { style: { color: "#f0f4f8", fontSize: 13 } }, `Approaches on ${dayKey}`),
-        list.map((x, k) => x.date === dayKey && RC("div", {
+        all.map((x, k) => x.date === dayKey && RC("div", {
           key: x.id || k,
-          onClick: () => { setIdx(k); setDayKey(null); },
+          onClick: () => { jumpTo(x); setDayKey(null); },
           style: { display: "flex", justifyContent: "space-between", gap: 10, padding: "9px 10px", marginTop: 8, background: "#1a2236", border: "1px solid rgba(255,255,255,.08)", borderRadius: 8, cursor: "pointer" }
         },
           RC("span", { style: { fontSize: 12, color: "#f0f4f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, `${x.venue || "(no venue)"} · ${(x.text || "").slice(0, 30)}`),
@@ -2646,7 +2850,8 @@ function App() {
       }
     }, e.note)));
   }))), tab === "review" && /*#__PURE__*/React.createElement(ReviewTab, {
-    data: data
+    data: data,
+    setData: setData
   }), /*#__PURE__*/React.createElement("div", {
     className: "tab-bar"
   }, /*#__PURE__*/React.createElement("div", {
