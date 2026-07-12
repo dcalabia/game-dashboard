@@ -391,7 +391,7 @@ function load() {
 }
 function save(s) {
   try {
-    localStorage.setItem("gd_v7", JSON.stringify(s));
+    localStorage.setItem("gd_v7", JSON.stringify({ ...s, savedAt: Date.now() }));
   } catch {}
 }
 function isoDate(d) {
@@ -1143,7 +1143,11 @@ function App() {
   const [editCLForm, setEditCLForm] = useState({label:"",icon:"✅"});
   const [editCLEmojiOpen, setEditCLEmojiOpen] = useState(false);
   const [blForm, setBlForm] = useState("");
+  // Skip the mount save: it would re-stamp savedAt on untouched (possibly
+  // stale) data and make this device wrongly win cross-device sync merges
+  const firstSave = useRef(true);
   useEffect(() => {
+    if (firstSave.current) { firstSave.current = false; return; }
     save(data);
   }, [data]);
 
@@ -4506,25 +4510,65 @@ function initSupabase() {
   try { sbClient = window.supabase.createClient(cfg.url, cfg.key); return true; } catch(e) { return false; }
 }
 
+// Union-merge two data blobs so no entries are ever lost between devices.
+// The blob with the newer savedAt wins per-item conflicts; lists are unioned by id.
+function mergeData(localStr, remoteStr) {
+  let L, R;
+  try { L = JSON.parse(localStr); } catch(e) { L = null; }
+  try { R = JSON.parse(remoteStr); } catch(e) { R = null; }
+  if (!L) return remoteStr;
+  if (!R) return localStr;
+  const localNewer = (L.savedAt || 0) >= (R.savedAt || 0);
+  const A = localNewer ? R : L, B = localNewer ? L : R; // B = newer, wins conflicts
+  const out = { ...A, ...B };
+  const byId = arr => { const m = new Map(); (arr || []).forEach(x => m.set(x && x.id != null ? x.id : JSON.stringify(x), x)); return m; };
+  ["microLog", "fieldReports", "interactions", "videos", "examples", "blueprints", "mindsets", "checklistItems", "bucketList"].forEach(k => {
+    const m = byId(A[k]); byId(B[k]).forEach((v, id) => m.set(id, v));
+    out[k] = [...m.values()];
+  });
+  out.microLog.sort((a, b) => ((b.date || "").localeCompare(a.date || "")) || ((b.id || 0) - (a.id || 0))); // newest first
+  ["techniques", "earnedBadges", "blockers"].forEach(k => { out[k] = [...new Set([...(A[k] || []), ...(B[k] || [])])]; });
+  out.checklistHistory = { ...(A.checklistHistory || {}) };
+  Object.entries(B.checklistHistory || {}).forEach(([d, v]) => { out.checklistHistory[d] = { ...(out.checklistHistory[d] || {}), ...v }; });
+  ["totalApproaches", "numbersGot", "datesSet", "rejections", "xp", "level", "streak"].forEach(k => { out[k] = Math.max(A[k] || 0, B[k] || 0); });
+  out.lastLogDate = [A.lastLogDate, B.lastLogDate].filter(Boolean).sort().pop() || null;
+  out.savedAt = Math.max(L.savedAt || 0, R.savedAt || 0);
+  return JSON.stringify(out);
+}
+// key-order-independent equality, ignoring the savedAt stamp
+function sameData(aStr, bStr) {
+  const canon = x => Array.isArray(x) ? x.map(canon)
+    : (x && typeof x === "object") ? Object.keys(x).sort().reduce((o, k) => (k === "savedAt" ? o : (o[k] = canon(x[k]), o)), {})
+    : x;
+  try { return JSON.stringify(canon(JSON.parse(aStr))) === JSON.stringify(canon(JSON.parse(bStr))); }
+  catch(e) { return aStr === bStr; }
+}
+
+let cloudSynced = false; // pushes are held until the first pull+merge completes
+
 async function syncFromCloud() {
   const ready = initSupabase();
-  if (!ready) { setSyncStatus('disconnected'); return; }
+  if (!ready) { setSyncStatus('disconnected'); cloudSynced = true; return; }
   setSyncStatus('syncing');
   try {
     const { data, error } = await sbClient.from('dashboard_data').select('key,value').eq('key', STORAGE_KEY);
     if (error) throw error;
-    if (data && data.length && data[0].value) {
-      const remote = JSON.parse(data[0].value);
-      // Merge: remote wins for keys not in local, local wins for today's data
-      localStorage.setItem(STORAGE_KEY, data[0].value);
-      // Force React to re-read — reload the page once
+    const local = localStorage.getItem(STORAGE_KEY);
+    const remote = (data && data.length && data[0].value) || null;
+    let merged = local && remote ? mergeData(local, remote) : (remote || local);
+    cloudSynced = true;
+    if (merged && (!remote || !sameData(merged, remote))) pushToCloud(merged);
+    if (merged && (!local || !sameData(merged, local))) {
+      _origSetItem(STORAGE_KEY, merged);
+      // Force React to re-read — reload at most once per session (loop guard)
       if (!sessionStorage.getItem('synced')) {
         sessionStorage.setItem('synced', '1');
         location.reload();
+        return;
       }
     }
     setSyncStatus('synced');
-  } catch(e) { setSyncStatus('error'); }
+  } catch(e) { cloudSynced = true; setSyncStatus('error'); }
 }
 
 async function pushToCloud(valueStr) {
@@ -4535,12 +4579,12 @@ async function pushToCloud(valueStr) {
   } catch(e) { setSyncStatus('error'); }
 }
 
-// Hook into localStorage saves — wrap the existing save function
-const _origSave = window.__gdSave;
+// Hook into localStorage saves — push on every save, but only after the
+// initial pull+merge so a stale device can't clobber newer cloud data
 const _origSetItem = localStorage.setItem.bind(localStorage);
 localStorage.setItem = function(key, value) {
   _origSetItem(key, value);
-  if (key === STORAGE_KEY && sbClient) pushToCloud(value);
+  if (key === STORAGE_KEY && sbClient && cloudSynced) pushToCloud(value);
 };
 
 function setSyncStatus(status) {
