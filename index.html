@@ -789,46 +789,74 @@ function ReviewTab({ data, setData }) {
   const addTag = t => { t = (t || "").trim(); if (!t || !m) return; if (!(m.tags || []).includes(t)) patch(m.id, { tags: [...(m.tags || []), t] }); };
   const rmTag = t => m && patch(m.id, { tags: (m.tags || []).filter(x => x !== t) });
 
-  // ── notes panel helpers ──
-  const saveNote = () => { if (noteRef.current && m && noteRef.current.value !== (m.review_note || "")) patch(m.id, { review_note: noteRef.current.value }); };
+  // ── notes panel helpers (rich text, HTML in review_note) ──
+  const escHtml = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  // legacy plain-text notes → HTML on the fly
+  const noteHtml = s => !s ? "" : /<\w+[^>]*>|<br/i.test(s) ? s : escHtml(s).replace(/\n/g, "<br>");
+  const noteLines = h => {
+    const d = document.createElement("div");
+    d.innerHTML = (h || "").replace(/<br\s*\/?>/gi, "").replace(/<\/(div|p)>/gi, "");
+    return (d.textContent || "").split("");
+  };
+  const saveNote = () => {
+    if (!noteRef.current || !m) return;
+    const html = noteRef.current.innerHTML.replace(/^(<br\s*\/?>)+$/i, "");
+    if (html !== noteHtml(m.review_note || "")) patch(m.id, { review_note: html });
+  };
+  const caretLine = () => {
+    const ed = noteRef.current, sel = window.getSelection();
+    if (!ed || !sel.rangeCount || !ed.contains(sel.anchorNode)) return -1;
+    const r = sel.getRangeAt(0).cloneRange();
+    r.setStart(ed, 0);
+    return r.cloneContents().querySelectorAll("br").length;
+  };
   const toggleStar = () => {
-    const ta = noteRef.current; if (!ta || !m) return;
-    const v = ta.value, p = ta.selectionStart || 0;
-    const s = v.lastIndexOf("\n", p - 1) + 1;
-    let e2 = v.indexOf("\n", p); if (e2 === -1) e2 = v.length;
-    const line = v.slice(s, e2);
-    const pre = (line.match(/^(\s*(?:•\s*)?)/) || ["", ""])[1];
-    const rest = line.slice(pre.length);
-    const nl = rest.startsWith("★") ? pre + rest.replace(/^★\s*/, "") : pre + "★ " + rest;
-    ta.value = v.slice(0, s) + nl + v.slice(e2);
-    patch(m.id, { review_note: ta.value });
-    ta.focus();
+    const ed = noteRef.current; if (!ed || !m) return;
+    const lines = ed.innerHTML.split(/<br\s*\/?>/i);
+    let li = caretLine();
+    if (li < 0 || li >= lines.length) li = lines.length - 1;
+    const l = lines[li];
+    if (/★/.test(l)) lines[li] = l.replace(/★(\s|&nbsp;)*/, "");
+    else {
+      const lead = (l.match(/^(?:<[^>]*>|\s|&nbsp;)*(?:[•-](?:\s|&nbsp;)+)?/) || [""])[0];
+      lines[li] = lead + "★ " + l.slice(lead.length);
+    }
+    ed.innerHTML = lines.join("<br>");
+    saveNote();
+  };
+  const cmd = (c, v) => { if (noteRef.current) noteRef.current.focus(); document.execCommand(c, false, v || null); };
+  const hilite = () => {
+    if (noteRef.current) noteRef.current.focus();
+    const cur = document.queryCommandValue("hiliteColor");
+    const on = cur && cur !== "transparent" && cur !== "rgba(0, 0, 0, 0)";
+    document.execCommand("hiliteColor", false, on ? "transparent" : "rgba(251,191,36,.45)");
   };
   const noteKey = e => {
-    const ta = e.target;
-    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); ta.blur(); return; }
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.target.blur(); return; }
     if (e.key === "Enter") {
       e.preventDefault();
-      const v = ta.value, p = ta.selectionStart, ins = "\n• ";
-      ta.value = v.slice(0, p) + ins + v.slice(ta.selectionEnd);
-      ta.selectionStart = ta.selectionEnd = p + ins.length;
+      const lines = noteLines(e.target.innerHTML);
+      let li = caretLine(); if (li < 0 || li >= lines.length) li = lines.length - 1;
+      const mk = (lines[li] || "").match(/^\s*([•-])\s*\S/); // continue marker only on non-empty lines
+      document.execCommand("insertHTML", false, "<br>" + (mk ? mk[1] + "&nbsp;" : ""));
       return;
     }
     if ((e.key === "h" || e.key === "H") && (e.ctrlKey || e.metaKey)) { e.preventDefault(); toggleStar(); }
   };
   const noteStyle = {
-    width: "100%", minHeight: 150, resize: "vertical", boxSizing: "border-box",
+    width: "100%", minHeight: 150, boxSizing: "border-box",
     backgroundColor: "#0e1526", backgroundAttachment: "local",
     background: "repeating-linear-gradient(#0e1526, #0e1526 25px, rgba(96,165,250,.18) 25px, rgba(96,165,250,.18) 26px)",
     border: "1px solid rgba(255,255,255,.08)", borderLeft: "3px solid rgba(224,64,64,.55)",
     borderRadius: 8, color: "#dbe7f3", fontSize: 13, lineHeight: "26px",
-    padding: "0 12px 0 16px", outline: "none", fontFamily: "inherit"
+    padding: "0 12px 0 16px", outline: "none", fontFamily: "inherit", whiteSpace: "pre-wrap"
   };
+  const tbBtn = { background: "#1a2236", border: "1px solid rgba(255,255,255,.08)", borderRadius: 6, color: "#8fa4b8", minWidth: 28, height: 26, fontSize: 12, cursor: "pointer", padding: "0 7px" };
 
   // ── highlights across all entries (newest first) ──
   const highlights = [];
-  [...all].reverse().forEach(x => (x.review_note || "").split("\n").forEach(l => {
-    const t = l.replace(/^\s*(?:•\s*)?/, "");
+  [...all].reverse().forEach(x => noteLines(noteHtml(x.review_note || "")).forEach(l => {
+    const t = l.replace(/^\s*(?:[•-]\s*)?/, "").trim();
     if (t.startsWith("★")) highlights.push({ entry: x, text: t.replace(/^★\s*/, "") });
   }));
 
@@ -970,16 +998,21 @@ function ReviewTab({ data, setData }) {
 
     // ── notes panel ──
     m && RC("div", { style: { marginTop: 14 } },
-      RC("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
+      RC("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, flexWrap: "wrap", gap: 6 } },
         RC("span", { style: { ...muted, letterSpacing: 1 } }, "REVIEW NOTES"),
-        RC("button", {
-          style: { ...navBtn, width: "auto", height: "auto", padding: "4px 12px", fontSize: 11 },
-          title: "Star the line at the cursor (Ctrl+H)", onClick: toggleStar
-        }, "★ Highlight line")),
-      RC("textarea", {
-        key: m.id, ref: noteRef, defaultValue: m.review_note || "",
-        placeholder: "• what happened, what to fix, what to repeat…  (Enter = new bullet, Ctrl+H = star line, Ctrl+Enter = save)",
-        style: noteStyle, onBlur: saveNote, onKeyDown: noteKey
+        RC("div", { style: { display: "flex", gap: 5 } },
+          RC("button", { style: tbBtn, title: "Bold (Ctrl+B)", onMouseDown: e => e.preventDefault(), onClick: () => cmd("bold") }, RC("b", null, "B")),
+          RC("button", { style: tbBtn, title: "Strikethrough", onMouseDown: e => e.preventDefault(), onClick: () => cmd("strikeThrough") }, RC("s", null, "S")),
+          RC("button", { style: tbBtn, title: "Highlight selected text (click again to remove)", onMouseDown: e => e.preventDefault(), onClick: hilite }, "🖍"),
+          RC("button", { style: tbBtn, title: "Insert bullet", onMouseDown: e => e.preventDefault(), onClick: () => cmd("insertText", "• ") }, "•"),
+          RC("button", { style: tbBtn, title: "Insert hyphen", onMouseDown: e => e.preventDefault(), onClick: () => cmd("insertText", "- ") }, "–"),
+          RC("button", { style: { ...tbBtn, color: "#fbbf24" }, title: "Star the line at the cursor — shows in Highlights below (Ctrl+H)", onMouseDown: e => e.preventDefault(), onClick: toggleStar }, "★ line"))),
+      RC("div", {
+        key: m.id, ref: noteRef, contentEditable: true, suppressContentEditableWarning: true,
+        className: "gd-note",
+        "data-ph": "• what happened, what to fix, what to repeat…  (Enter = new bullet, Ctrl+H = star line, Ctrl+Enter = save)",
+        style: noteStyle, onBlur: saveNote, onKeyDown: noteKey,
+        dangerouslySetInnerHTML: { __html: noteHtml(m.review_note || "") }
       })),
 
     // ── highlights across all entries ──
@@ -1730,6 +1763,8 @@ function App() {
 
         /* Parse preview */
         .parse-preview-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:12px;margin-bottom:10px;}
+        /* Review notes pad: placeholder for empty contenteditable */
+        .gd-note:empty:before{content:attr(data-ph);color:#4d6070;font-size:12px;pointer-events:none;}
 
         /* Inputs */
         input,select,textarea{background:var(--bg3);border:1px solid var(--border);color:var(--t1);
