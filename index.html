@@ -727,6 +727,7 @@ function StepRow({
 
 // ── review deck — one card per logged approach/miss ──────────
 const REV_PRESETS = ["Best Lessons", "Rework This", "Breakthrough", "Blocker Pattern"];
+const GD_IMGBB_KEY = "64c3ec970d032c02a6b91be4f2b8def2"; // same free key the trading stack uses
 function ReviewTab({ data, setData }) {
   const RC = React.createElement;
   const all = [...(data.microLog || [])].sort((a, b) =>
@@ -743,6 +744,7 @@ function ReviewTab({ data, setData }) {
   const [editField, setEditField] = useState(null); // "venue"|"text"|"blockers"|"blueprint"|"type"|null
   const [tagInput, setTagInput] = useState(null);   // null = hidden, string = open
   const [hlOpen, setHlOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const noteRef = useRef(null);
   const jumpRef = useRef(null);   // index to land on after a filter change
   const firstRun = useRef(true);
@@ -780,6 +782,38 @@ function ReviewTab({ data, setData }) {
     const k = list.indexOf(entry);
     if (k >= 0) setIdx(k);
     else { jumpRef.current = all.indexOf(entry); setFilter("all"); }
+  };
+
+  // photo upload — imgbb URL only lands in the data blob, so the
+  // existing gd_v7 -> dashboard_data cloud sync carries it for free
+  const pickPhoto = () => {
+    if (!m || uploading) return;
+    const entryId = m.id;
+    const inp = document.createElement("input");
+    inp.type = "file"; inp.accept = "image/*";
+    inp.onchange = async () => {
+      const file = inp.files[0];
+      if (!file) return;
+      setUploading(true);
+      try {
+        const b64 = await new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload = () => res(r.result.split(",")[1]);
+          r.onerror = rej;
+          r.readAsDataURL(file);
+        });
+        const body = new URLSearchParams();
+        body.set("key", GD_IMGBB_KEY);
+        body.set("image", b64);
+        const up = await fetch("https://api.imgbb.com/1/upload", { method: "POST", body });
+        const json = await up.json();
+        if (!json.success) throw new Error(json.error?.message || "imgbb upload failed");
+        setData(d => ({ ...d, microLog: d.microLog.map(x =>
+          x.id === entryId ? { ...x, photos: [...(x.photos || []), json.data.url] } : x) }));
+      } catch (e) { alert("Upload failed: " + e.message); }
+      setUploading(false);
+    };
+    inp.click();
   };
 
   // tag counts for the filter dropdown
@@ -995,6 +1029,29 @@ function ReviewTab({ data, setData }) {
               },
               onBlur: () => { addTag(tagInput); setTagInput(null); }
             }))),
+
+    // ── photos panel — field pics/screenshots per entry ──
+    m && RC("div", { style: { marginTop: 14 } },
+      RC("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
+        RC("span", { style: { ...muted, letterSpacing: 1 } }, "PHOTOS"),
+        RC("button", {
+          style: { ...chip, cursor: uploading ? "wait" : "pointer", color: "#60a5fa", fontFamily: "inherit" },
+          onClick: pickPhoto
+        }, uploading ? "Uploading…" : "＋ Add photo")),
+      (m.photos || []).length
+        ? RC("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 8 } },
+            (m.photos || []).map((u, k) => RC("div", { key: u + k, style: { position: "relative" } },
+              RC("img", {
+                src: u, loading: "lazy",
+                style: { width: "100%", borderRadius: 8, border: "1px solid rgba(255,255,255,.08)", display: "block", cursor: "zoom-in" },
+                onClick: () => window.open(u, "_blank")
+              }),
+              RC("span", {
+                style: { position: "absolute", top: 4, right: 4, background: "rgba(10,15,25,.85)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 5, padding: "1px 7px", fontSize: 11, color: "#e07040", cursor: "pointer" },
+                title: "Remove photo",
+                onClick: () => window.confirm("Remove this photo?") && patch(m.id, { photos: (m.photos || []).filter((_, j) => j !== k) })
+              }, "✕"))))
+        : RC("div", { style: muted }, "No photos yet")),
 
     // ── notes panel ──
     m && RC("div", { style: { marginTop: 14 } },
