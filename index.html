@@ -727,6 +727,9 @@ function StepRow({
 
 // ── review deck — one card per logged approach/miss ──────────
 const REV_PRESETS = ["Best Lessons", "Rework This", "Breakthrough", "Blocker Pattern"];
+// blueprint areas — categorize each block, then filter the review deck by them
+const GD_AREAS = ["Nightlife", "Daytime", "Coffee Shop", "Festival", "Transit", "Day Party", "Other"];
+const AREA_ICON = { "Nightlife": "🌃", "Daytime": "☀️", "Coffee Shop": "☕", "Festival": "🎪", "Transit": "🚇", "Day Party": "🎉", "Other": "📍" };
 const GD_IMGBB_KEY = "64c3ec970d032c02a6b91be4f2b8def2"; // same free key the trading stack uses
 function ReviewTab({ data, setData }) {
   const RC = React.createElement;
@@ -734,9 +737,12 @@ function ReviewTab({ data, setData }) {
     (a.date || "") < (b.date || "") ? -1 :
     (a.date || "") > (b.date || "") ? 1 : (a.id || 0) - (b.id || 0));
   const [filter, setFilter] = useState("all");
-  const matches = x => filter === "all" ? true :
+  const [areaFilter, setAreaFilter] = useState("all");
+  const matches = x =>
+    (areaFilter === "all" || (x.area || "") === areaFilter) &&
+    (filter === "all" ? true :
     (filter === "win" || filter === "missed") ? x.type === filter :
-    (x.tags || []).includes(filter);
+    (x.tags || []).includes(filter));
   const list = all.filter(matches);
   const [idx, setIdx] = useState(list.length - 1);
   const [calYM, setCalYM] = useState(null);    // [year, month0] when calendar open
@@ -754,7 +760,7 @@ function ReviewTab({ data, setData }) {
     if (jumpRef.current != null) { setIdx(jumpRef.current); jumpRef.current = null; }
     else setIdx(999999); // clamps to newest of the new filter
     setEditField(null);
-  }, [filter]);
+  }, [filter, areaFilter]);
   const i = Math.min(Math.max(idx, 0), Math.max(list.length - 1, 0));
   const m = list[i];
   const patch = (id, fields) => setData(d => ({ ...d, microLog: d.microLog.map(x => x.id === id ? { ...x, ...fields } : x) }));
@@ -782,7 +788,7 @@ function ReviewTab({ data, setData }) {
   const jumpTo = entry => {
     const k = list.indexOf(entry);
     if (k >= 0) setIdx(k);
-    else { jumpRef.current = all.indexOf(entry); setFilter("all"); }
+    else { jumpRef.current = all.indexOf(entry); setFilter("all"); setAreaFilter("all"); }
   };
 
   // photo upload — imgbb URL only lands in the data blob, so the
@@ -954,11 +960,30 @@ function ReviewTab({ data, setData }) {
         RC("button", { style: navBtn, onClick: () => setIdx(x => Math.max(x - 1, 0)) }, "←"),
         RC("button", { style: navBtn, onClick: () => setIdx(x => Math.min(x + 1, list.length - 1)) }, "→"))),
 
+    // area playlist bar — pick an area, then ←/→ replays every block from it
+    RC("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 } },
+      RC("span", {
+        onClick: () => setAreaFilter("all"),
+        style: { ...chip, cursor: "pointer", color: areaFilter === "all" ? "#60a5fa" : "#4d6070", borderColor: areaFilter === "all" ? "#60a5fa" : "rgba(255,255,255,.08)" }
+      }, `All areas (${all.length})`),
+      GD_AREAS.map(a => {
+        const n = all.filter(x => (x.area || "") === a).length;
+        const on = areaFilter === a;
+        return RC("span", {
+          key: a,
+          onClick: () => setAreaFilter(on ? "all" : a),
+          title: n ? `Replay all ${n} ${a} blocks` : `No ${a} blocks yet`,
+          style: { ...chip, cursor: "pointer", color: on ? "#fbbf24" : n ? "#8fa4b8" : "#3a4f60", borderColor: on ? "#fbbf24" : "rgba(255,255,255,.08)" }
+        }, `${AREA_ICON[a]} ${a} (${n})`);
+      })),
+
     !m && RC("div", { style: { color: "#4d6070", fontSize: 13, padding: 24, textAlign: "center" } },
       "Nothing matches this filter. ",
       RC("span", { style: { color: "#60a5fa", cursor: "pointer", textDecoration: "underline" }, onClick: () => setFilter("all") }, "Show all")),
 
-    m && RC("div", { style: { background: "#121a2b", border: "1px solid rgba(255,255,255,.08)", borderRadius: 14, padding: 18 } },
+    // two-column deck: card + notes left, photos column right (stacks on mobile)
+    m && RC("div", { className: "rev-grid" },
+    RC("div", { className: "rev-main", style: { background: "#121a2b", border: "1px solid rgba(255,255,255,.08)", borderRadius: 14, padding: 18 } },
       RC("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4, gap: 10 } },
         editField === "venue"
           ? RC("input", {
@@ -988,6 +1013,21 @@ function ReviewTab({ data, setData }) {
           setCalYM([y, mo - 1]);
         }
       }, `${m.date || "—"}${m.ts ? " · " + m.ts : ""}`),
+
+      // area — which blueprint environment this block happened in
+      RC("div", { style: { marginBottom: 10 } },
+        editField === "area"
+          ? RC("select", {
+              autoFocus: true, defaultValue: m.area || "", style: inputSt,
+              onChange: e => { patch(m.id, { area: e.target.value }); setEditField(null); },
+              onBlur: () => setEditField(null)
+            },
+              RC("option", { value: "" }, "(no area)"),
+              GD_AREAS.map(a => RC("option", { key: a, value: a }, `${AREA_ICON[a]} ${a}`)))
+          : RC("span", {
+              style: { ...chip, cursor: "pointer", color: m.area ? "#fbbf24" : "#4d6070", borderColor: m.area ? "rgba(251,191,36,.4)" : "rgba(255,255,255,.08)" },
+              title: "Click to set the area", onClick: () => setEditField("area")
+            }, m.area ? `${AREA_ICON[m.area] || "📍"} ${m.area}` : "+ area")),
 
       // blockers — click to toggle-edit
       editField === "blockers"
@@ -1056,8 +1096,8 @@ function ReviewTab({ data, setData }) {
               onBlur: () => { addTag(tagInput); setTagInput(null); }
             }))),
 
-    // ── photos panel — field pics/screenshots per entry ──
-    m && RC("div", { style: { marginTop: 14 } },
+    // ── photos column — field pics/screenshots per entry ──
+    RC("div", { className: "rev-photos" },
       RC("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
         RC("span", { style: { ...muted, letterSpacing: 1 } }, "PHOTOS"),
         RC("button", {
@@ -1080,7 +1120,7 @@ function ReviewTab({ data, setData }) {
         : RC("div", { style: muted }, "No photos yet")),
 
     // ── notes panel ──
-    m && RC("div", { style: { marginTop: 14 } },
+    RC("div", { className: "rev-notes", style: { marginTop: 14 } },
       RC("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, flexWrap: "wrap", gap: 6 } },
         RC("span", { style: { ...muted, letterSpacing: 1 } }, "REVIEW NOTES"),
         RC("div", { style: { display: "flex", gap: 5 } },
@@ -1097,7 +1137,7 @@ function ReviewTab({ data, setData }) {
         style: noteStyle, onBlur: saveNote, onKeyDown: noteKey,
         onFocus: e => { if (!(e.target.textContent || "").trim()) document.execCommand("insertHTML", false, "•&nbsp;"); },
         dangerouslySetInnerHTML: { __html: noteHtml(m.review_note || "") }
-      })),
+      }))),
 
     // ── highlights across all entries ──
     highlights.length > 0 && RC("div", { style: { marginTop: 16, background: "#121a2b", border: "1px solid rgba(255,255,255,.08)", borderRadius: 14, padding: "12px 16px" } },
@@ -1217,6 +1257,7 @@ function App() {
     venue: "",
     type: "missed",
     text: "",
+    area: "",
     blockers: [],
     blueprintId: null
   });
@@ -1381,6 +1422,7 @@ function App() {
       venue: m.venue || "",
       type: m.type || "missed",
       text: m.text || "",
+      area: m.area || "",
       blockers: m.blockers || [],
       blueprintId: m.blueprintId || null
     });
@@ -1421,6 +1463,7 @@ function App() {
       venue: "",
       type: "missed",
       text: "",
+      area: "",
       blockers: [],
       blueprintId: null
     });
@@ -1880,6 +1923,15 @@ function App() {
         .parse-preview-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:12px;margin-bottom:10px;}
         /* Review notes pad: placeholder for empty contenteditable */
         .gd-note:empty:before{content:attr(data-ph);color:#4d6070;font-size:12px;pointer-events:none;}
+        /* Review deck: card+notes left, photos column right */
+        .rev-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:0 14px;align-items:start;}
+        .rev-main{grid-column:1;}
+        .rev-notes{grid-column:1;}
+        .rev-photos{grid-column:2;grid-row:1 / span 2;position:sticky;top:12px;background:#121a2b;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px 14px;}
+        @media(max-width:900px){
+          .rev-grid{grid-template-columns:1fr;}
+          .rev-photos{grid-column:1;grid-row:auto;position:static;margin-top:14px;}
+        }
 
         /* Inputs */
         input,select,textarea{background:var(--bg3);border:1px solid var(--border);color:var(--t1);
@@ -3516,7 +3568,18 @@ function App() {
         flex: 1
       }
     }, bp.title));
-  })), /*#__PURE__*/React.createElement("div", {
+  })), /*#__PURE__*/React.createElement(FW, null, /*#__PURE__*/React.createElement(FL, {
+    c: "Area"
+  }), /*#__PURE__*/React.createElement("div", {
+    style: { display: "flex", flexWrap: "wrap", gap: 6 }
+  }, GD_AREAS.map(a => {
+    const sel = microForm.area === a;
+    return /*#__PURE__*/React.createElement("button", {
+      key: a,
+      className: `bp-chip${sel ? " sel" : ""}`,
+      onClick: () => setMicroForm(f => ({ ...f, area: sel ? "" : a }))
+    }, /*#__PURE__*/React.createElement("span", null, `${AREA_ICON[a]} ${a}`));
+  }))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: 8
