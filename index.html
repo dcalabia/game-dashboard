@@ -737,12 +737,10 @@ function ReviewTab({ data, setData }) {
     (a.date || "") < (b.date || "") ? -1 :
     (a.date || "") > (b.date || "") ? 1 : (a.id || 0) - (b.id || 0));
   const [filter, setFilter] = useState("all");
-  const [areaFilter, setAreaFilter] = useState("all");
-  const matches = x =>
-    (areaFilter === "all" || (x.area || "") === areaFilter) &&
-    (filter === "all" ? true :
+  const matches = x => filter === "all" ? true :
+    filter.startsWith("area:") ? (x.area || "") === filter.slice(5) :
     (filter === "win" || filter === "missed") ? x.type === filter :
-    (x.tags || []).includes(filter));
+    (x.tags || []).includes(filter);
   const list = all.filter(matches);
   const [idx, setIdx] = useState(list.length - 1);
   const [calYM, setCalYM] = useState(null);    // [year, month0] when calendar open
@@ -760,7 +758,7 @@ function ReviewTab({ data, setData }) {
     if (jumpRef.current != null) { setIdx(jumpRef.current); jumpRef.current = null; }
     else setIdx(999999); // clamps to newest of the new filter
     setEditField(null);
-  }, [filter, areaFilter]);
+  }, [filter]);
   const i = Math.min(Math.max(idx, 0), Math.max(list.length - 1, 0));
   const m = list[i];
   const patch = (id, fields) => setData(d => ({ ...d, microLog: d.microLog.map(x => x.id === id ? { ...x, ...fields } : x) }));
@@ -788,7 +786,7 @@ function ReviewTab({ data, setData }) {
   const jumpTo = entry => {
     const k = list.indexOf(entry);
     if (k >= 0) setIdx(k);
-    else { jumpRef.current = all.indexOf(entry); setFilter("all"); setAreaFilter("all"); }
+    else { jumpRef.current = all.indexOf(entry); setFilter("all"); }
   };
 
   // photo upload — imgbb URL only lands in the data blob, so the
@@ -955,27 +953,14 @@ function ReviewTab({ data, setData }) {
         RC("option", { value: "all" }, `All (${all.length})`),
         RC("option", { value: "win" }, `WIN (${all.filter(x => x.type === "win").length})`),
         RC("option", { value: "missed" }, `MISSED (${all.filter(x => x.type === "missed").length})`),
-        allTags.map(t => RC("option", { key: t, value: t }, `${t} (${tagCounts[t] || 0})`))),
+        RC("optgroup", { label: "Areas — pick one to replay those blocks" },
+          GD_AREAS.map(a => RC("option", { key: a, value: "area:" + a },
+            `${AREA_ICON[a]} ${a} (${all.filter(x => (x.area || "") === a).length})`))),
+        RC("optgroup", { label: "Tags" },
+          allTags.map(t => RC("option", { key: t, value: t }, `${t} (${tagCounts[t] || 0})`)))),
       RC("div", { style: { display: "flex", gap: 8, flexShrink: 0 } },
         RC("button", { style: navBtn, onClick: () => setIdx(x => Math.max(x - 1, 0)) }, "←"),
         RC("button", { style: navBtn, onClick: () => setIdx(x => Math.min(x + 1, list.length - 1)) }, "→"))),
-
-    // area playlist bar — pick an area, then ←/→ replays every block from it
-    RC("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 } },
-      RC("span", {
-        onClick: () => setAreaFilter("all"),
-        style: { ...chip, cursor: "pointer", color: areaFilter === "all" ? "#60a5fa" : "#4d6070", borderColor: areaFilter === "all" ? "#60a5fa" : "rgba(255,255,255,.08)" }
-      }, `All areas (${all.length})`),
-      GD_AREAS.map(a => {
-        const n = all.filter(x => (x.area || "") === a).length;
-        const on = areaFilter === a;
-        return RC("span", {
-          key: a,
-          onClick: () => setAreaFilter(on ? "all" : a),
-          title: n ? `Replay all ${n} ${a} blocks` : `No ${a} blocks yet`,
-          style: { ...chip, cursor: "pointer", color: on ? "#fbbf24" : n ? "#8fa4b8" : "#3a4f60", borderColor: on ? "#fbbf24" : "rgba(255,255,255,.08)" }
-        }, `${AREA_ICON[a]} ${a} (${n})`);
-      })),
 
     !m && RC("div", { style: { color: "#4d6070", fontSize: 13, padding: 24, textAlign: "center" } },
       "Nothing matches this filter. ",
