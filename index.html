@@ -744,6 +744,7 @@ function ReviewTab({ data, setData }) {
   const [editField, setEditField] = useState(null); // "venue"|"text"|"blockers"|"blueprint"|"type"|null
   const [tagInput, setTagInput] = useState(null);   // null = hidden, string = open
   const [hlOpen, setHlOpen] = useState(false);
+  const [bestOpen, setBestOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const noteRef = useRef(null);
   const jumpRef = useRef(null);   // index to land on after a filter change
@@ -827,15 +828,25 @@ function ReviewTab({ data, setData }) {
   const escHtml = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   // legacy plain-text notes → HTML on the fly
   const noteHtml = s => !s ? "" : /<\w+[^>]*>|<br/i.test(s) ? s : escHtml(s).replace(/\n/g, "<br>");
-  const noteLines = h => {
-    const d = document.createElement("div");
-    d.innerHTML = (h || "").replace(/<br\s*\/?>/gi, "").replace(/<\/(div|p)>/gi, "");
-    return (d.textContent || "").split("");
-  };
+  const noteRawLines = h => (h || "").split(/<br\s*\/?>/i);
+  const lineText = raw => { const d = document.createElement("div"); d.innerHTML = raw || ""; return d.textContent || ""; };
   const saveNote = () => {
     if (!noteRef.current || !m) return;
-    const html = noteRef.current.innerHTML.replace(/^(<br\s*\/?>)+$/i, "");
+    let html = noteRef.current.innerHTML.replace(/^(<br\s*\/?>)+$/i, "");
+    if (!(noteRef.current.textContent || "").replace(/[•\-★\s ]/g, "")) html = "";
     if (html !== noteHtml(m.review_note || "")) patch(m.id, { review_note: html });
+  };
+  // put the caret at line li, char offset ch (used to restore after a save re-render)
+  const caretTo = (li, ch) => {
+    const ed = noteRef.current; if (!ed) return;
+    ed.focus();
+    let line = 0, n = ed.firstChild;
+    while (n && line < li) { if (n.nodeName === "BR") line++; n = n.nextSibling; }
+    const r = document.createRange();
+    if (!n) { r.selectNodeContents(ed); r.collapse(false); }
+    else if (n.nodeType === 3) { r.setStart(n, Math.min(ch, n.length)); r.collapse(true); }
+    else { r.setStartBefore(n); r.collapse(true); }
+    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
   };
   const caretLine = () => {
     const ed = noteRef.current, sel = window.getSelection();
@@ -869,10 +880,14 @@ function ReviewTab({ data, setData }) {
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.target.blur(); return; }
     if (e.key === "Enter") {
       e.preventDefault();
-      const lines = noteLines(e.target.innerHTML);
+      const lines = noteRawLines(e.target.innerHTML);
       let li = caretLine(); if (li < 0 || li >= lines.length) li = lines.length - 1;
-      const mk = (lines[li] || "").match(/^\s*([•-])\s*\S/); // continue marker only on non-empty lines
-      document.execCommand("insertHTML", false, "<br>" + (mk ? mk[1] + "&nbsp;" : ""));
+      // continue the current line's marker; default to a bullet
+      const mk = (lineText(lines[li]).match(/^\s*([•-])/) || [])[1] || "•";
+      document.execCommand("insertHTML", false, "<br>" + mk + "&nbsp;");
+      const newLi = li + 1;
+      saveNote(); // Enter commits the line; the re-render resets the caret, so restore it
+      setTimeout(() => caretTo(newLi, 2), 0);
       return;
     }
     if ((e.key === "h" || e.key === "H") && (e.ctrlKey || e.metaKey)) { e.preventDefault(); toggleStar(); }
@@ -889,10 +904,21 @@ function ReviewTab({ data, setData }) {
 
   // ── highlights across all entries (newest first) ──
   const highlights = [];
-  [...all].reverse().forEach(x => noteLines(noteHtml(x.review_note || "")).forEach(l => {
-    const t = l.replace(/^\s*(?:[•-]\s*)?/, "").trim();
-    if (t.startsWith("★")) highlights.push({ entry: x, text: t.replace(/^★\s*/, "") });
-  }));
+  [...all].reverse().forEach(x => {
+    const html = noteHtml(x.review_note || "");
+    if (html.indexOf("★") === -1) return;
+    noteRawLines(html).forEach((raw, li) => {
+      const t = lineText(raw).replace(/^\s*(?:[•-]\s*)?/, "").trim();
+      if (t.startsWith("★")) highlights.push({ entry: x, li, best: t.startsWith("★★"), text: t.replace(/^★+\s*/, "") });
+    });
+  });
+  const bests = highlights.filter(h => h.best);
+  // promote ★ -> ★★ (or back) on that exact line — the note is the storage, so it syncs for free
+  const toggleBestHl = h => {
+    const lines = noteRawLines(noteHtml(h.entry.review_note || ""));
+    lines[h.li] = h.best ? lines[h.li].replace("★★", "★") : lines[h.li].replace("★", "★★");
+    patch(h.entry.id, { review_note: lines.join("<br>") });
+  };
 
   // month grid for the picker
   const cal = (() => {
@@ -1067,8 +1093,9 @@ function ReviewTab({ data, setData }) {
       RC("div", {
         key: m.id, ref: noteRef, contentEditable: true, suppressContentEditableWarning: true,
         className: "gd-note",
-        "data-ph": "• what happened, what to fix, what to repeat…  (Enter = new bullet, Ctrl+H = star line, Ctrl+Enter = save)",
+        "data-ph": "• what happened, what to fix, what to repeat…  (Enter = new bullet + save, Ctrl+H = star line)",
         style: noteStyle, onBlur: saveNote, onKeyDown: noteKey,
+        onFocus: e => { if (!(e.target.textContent || "").trim()) document.execCommand("insertHTML", false, "•&nbsp;"); },
         dangerouslySetInnerHTML: { __html: noteHtml(m.review_note || "") }
       })),
 
@@ -1085,8 +1112,35 @@ function ReviewTab({ data, setData }) {
         onClick: () => jumpTo(h.entry),
         style: { display: "flex", gap: 8, alignItems: "baseline", padding: "7px 0", borderTop: k ? "1px solid rgba(255,255,255,.05)" : "none", marginTop: k ? 2 : 8, cursor: "pointer" }
       },
+        RC("span", {
+          title: h.best ? "Remove from Best of Highlights" : "Promote to Best of Highlights",
+          onClick: e => { e.stopPropagation(); toggleBestHl(h); },
+          style: { flexShrink: 0, cursor: "pointer", fontSize: 13, filter: h.best ? "none" : "grayscale(1) opacity(.45)" }
+        }, "🏆"),
         RC("span", { style: { ...muted, flexShrink: 0, width: 110 } }, `${h.entry.date || "—"} · ${(h.entry.venue || "").slice(0, 10)}`),
         RC("span", { style: { fontSize: 12, color: "#0b1120", background: "rgba(251,191,36,.85)", borderRadius: 3, padding: "1px 5px", lineHeight: 1.5 } }, h.text)))),
+
+    // ── best of highlights — the ★★ subset, promoted via 🏆 ──
+    highlights.length > 0 && RC("div", { style: { marginTop: 12, background: "#121a2b", border: "1px solid rgba(251,191,36,.45)", borderRadius: 14, padding: "12px 16px" } },
+      RC("div", {
+        style: { display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" },
+        onClick: () => setBestOpen(o => !o)
+      },
+        RC("span", { style: { fontSize: 13, fontWeight: 700, color: "#fbbf24" } }, `🏆 Best of Highlights (${bests.length})`),
+        RC("span", { style: muted }, bestOpen ? "▲" : "▼")),
+      bestOpen && (bests.length ? bests.map((h, k) => RC("div", {
+        key: k,
+        onClick: () => jumpTo(h.entry),
+        style: { display: "flex", gap: 8, alignItems: "baseline", padding: "7px 0", borderTop: k ? "1px solid rgba(255,255,255,.05)" : "none", marginTop: k ? 2 : 8, cursor: "pointer" }
+      },
+        RC("span", {
+          title: "Remove from Best of Highlights",
+          onClick: e => { e.stopPropagation(); toggleBestHl(h); },
+          style: { flexShrink: 0, cursor: "pointer", fontSize: 13 }
+        }, "🏆"),
+        RC("span", { style: { ...muted, flexShrink: 0, width: 110 } }, `${h.entry.date || "—"} · ${(h.entry.venue || "").slice(0, 10)}`),
+        RC("span", { style: { fontSize: 12, color: "#0b1120", background: "rgba(251,191,36,.85)", borderRadius: 3, padding: "1px 5px", lineHeight: 1.5 } }, h.text)))
+      : RC("div", { style: { ...muted, marginTop: 8 } }, "Nothing promoted yet — hit the 🏆 on any highlight above"))),
 
     calYM && RC("div", { style: overlay, onClick: e => { if (e.target === e.currentTarget) setCalYM(null); } },
       RC("div", { style: modal },
